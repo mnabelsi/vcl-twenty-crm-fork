@@ -1,6 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { Clock, FakeTwenty, FakeZoho, memoryStore } from 'src/__tests__/fakes';
+import {
+  Clock,
+  FakeTwenty,
+  FakeZoho,
+  memoryStore,
+  rateLimitError,
+} from 'src/__tests__/fakes';
 import { requestMode, runSync } from 'src/sync/run';
 import { CONNECTED_AT_KEY, loadStatus, REQUEST_KEY } from 'src/sync/state';
 import { ZohoAuthError } from 'src/zoho/client';
@@ -90,6 +96,26 @@ describe('runSync', () => {
     expect(recovered.outcome).toBe('ok');
     expect((await loadStatus(store)).recentErrors).toEqual([]);
     expect((await loadStatus(store)).totals.peopleCreated).toBe(1);
+  });
+
+  it("continues a minute later when Twenty's request limit is reached", async () => {
+    zoho.add('Accounts', { Account_Name: 'Fictitious Trading' });
+    twenty.listUnlinkedCompanies = async () => {
+      throw rateLimitError();
+    };
+
+    const stopped = await run();
+
+    expect(stopped.outcome).toBe('ok');
+    expect(stopped.retryAfterMs).toBe(60_000);
+    expect(stopped.message).toContain('continues in a minute');
+    expect((await loadStatus(store)).recentErrors).toEqual([]);
+
+    twenty.listUnlinkedCompanies = FakeTwenty.prototype.listUnlinkedCompanies;
+    const resumed = await run();
+
+    expect(resumed.retryAfterMs).toBeUndefined();
+    expect((await loadStatus(store)).totals.companiesCreated).toBe(1);
   });
 
   it('steps aside while another run holds the lock', async () => {

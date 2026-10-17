@@ -22,6 +22,10 @@ export class TwentyApiError extends Error {
       this.codes.includes('INVALID_PHONE_NUMBER') || /phone/i.test(this.message)
     );
   }
+
+  get isRateLimited(): boolean {
+    return this.codes.includes('RATE_LIMITED');
+  }
 }
 
 export const PERSON_FIELDS = `

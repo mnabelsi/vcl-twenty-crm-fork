@@ -43,7 +43,11 @@ import {
   type SyncErrorEntry,
   type SyncState,
 } from 'src/sync/state';
-import { TwentyApiError, type TwentyGateway } from 'src/twenty/gateway';
+import {
+  MUTATION_BATCH_SIZE,
+  TwentyApiError,
+  type TwentyGateway,
+} from 'src/twenty/gateway';
 import {
   ZohoAuthError,
   type ZohoClient,
@@ -88,6 +92,8 @@ export type EngineResult = {
   moreWorkPending: boolean;
   initialImportDone: boolean;
   backfillRunning: boolean;
+  // Twenty's request limit for apps stopped the run early.
+  rateLimited: boolean;
   state: SyncState;
 };
 
@@ -151,12 +157,16 @@ const personLabel = (values: PersonValues): string =>
   values.primaryEmail ||
   'Unnamed person';
 
+const isRateLimited = (error: unknown): boolean =>
+  error instanceof TwentyApiError && error.isRateLimited;
+
 type PendingWrite<T> = {
   data: Record<string, unknown>;
   label: string;
   zohoId: string | null;
   twentyId: string | null;
   onWritten?: (record: T) => void;
+  onFailed?: () => void;
 };
 
 export class SyncEngine {
@@ -172,6 +182,7 @@ export class SyncEngine {
   private memberIdByEmail: Map<string, string> | null = null;
   private industryByKey: Map<string, string> | null | undefined;
   private moreWorkPending = false;
+  private rateLimited = false;
 
   constructor(
     private readonly deps: EngineDependencies,
@@ -226,6 +237,35 @@ export class SyncEngine {
     }
     await this.persist();
 
+    try {
+      await this.pullAndPush();
+    } catch (error) {
+      if (!isRateLimited(error)) {
+        throw error;
+      }
+      // The cursors only move past finished pages, so the next run reads the
+      // interrupted page again and finds what it already wrote by its Zoho link.
+      this.rateLimited = true;
+      this.moreWorkPending = true;
+    }
+
+    await this.persist();
+
+    return {
+      counts: this.counts,
+      errors: this.errors,
+      moreWorkPending: this.moreWorkPending,
+      initialImportDone:
+        this.state.pull.accounts.caughtUp && this.state.pull.contacts.caughtUp,
+      backfillRunning: this.state.backfill !== null,
+      rateLimited: this.rateLimited,
+      state: this.state,
+    };
+  }
+
+  private async pullAndPush(): Promise<void> {
+    const { direction } = this.deps.config;
+
     if (pullsFromZoho(direction)) {
       const accountsDone = await this.pullModule('Accounts');
       const contactsDone = accountsDone && (await this.pullModule('Contacts'));
@@ -255,18 +295,6 @@ export class SyncEngine {
     } else if (pushesToZoho(direction)) {
       this.moreWorkPending = true;
     }
-
-    await this.persist();
-
-    return {
-      counts: this.counts,
-      errors: this.errors,
-      moreWorkPending: this.moreWorkPending,
-      initialImportDone:
-        this.state.pull.accounts.caughtUp && this.state.pull.contacts.caughtUp,
-      backfillRunning: this.state.backfill !== null,
-      state: this.state,
-    };
   }
 
   // -------------------------------------------------------------------------
@@ -351,24 +379,32 @@ export class SyncEngine {
 
   private async loadUnlinkedCompanies() {
     if (!this.unlinkedCompanies) {
-      const byHost = new Map<string, TwentyCompany>();
-      const byName = new Map<string, TwentyCompany>();
+      const companies = await this.deps.twenty.listUnlinkedCompanies();
 
-      for (const company of await this.deps.twenty.listUnlinkedCompanies()) {
-        const host = websiteHost(company.domainName?.primaryLinkUrl);
-        const name = companyNameKey(company.name);
-
-        if (host && !byHost.has(host)) {
-          byHost.set(host, company);
-        }
-        if (name && !byName.has(name)) {
-          byName.set(name, company);
-        }
+      this.unlinkedCompanies = { byHost: new Map(), byName: new Map() };
+      for (const company of companies) {
+        this.rememberUnlinkedCompany(company);
       }
-      this.unlinkedCompanies = { byHost, byName };
     }
 
     return this.unlinkedCompanies;
+  }
+
+  private rememberUnlinkedCompany(company: TwentyCompany): void {
+    if (!this.unlinkedCompanies) {
+      return;
+    }
+
+    const { byHost, byName } = this.unlinkedCompanies;
+    const host = websiteHost(company.domainName?.primaryLinkUrl);
+    const name = companyNameKey(company.name);
+
+    if (host && !byHost.has(host)) {
+      byHost.set(host, company);
+    }
+    if (name && !byName.has(name)) {
+      byName.set(name, company);
+    }
   }
 
   private forgetUnlinkedCompany(company: TwentyCompany): void {
@@ -526,6 +562,11 @@ export class SyncEngine {
           zohoId: account.id,
           twentyId: match.id,
           onWritten: () => (this.counts.companiesLinked += 1),
+          // Still unlinked: the account must match it again, not create a copy.
+          onFailed: () => {
+            this.rememberUnlinkedCompany(match);
+            this.companyIdByZohoId.delete(account.id);
+          },
         });
         continue;
       }
@@ -812,18 +853,66 @@ export class SyncEngine {
     return zohoCompanyId ? { companyId: zohoCompanyId } : {};
   }
 
-  // Writes in batches; when a batch fails, each record is retried alone so
-  // one bad record (an invalid phone number, say) does not block the others.
+  // Writes in batches; when a batch fails, each of its records is retried alone
+  // so one bad record (an invalid phone number, say) does not block the others.
+  // Twenty's request limit is not a bad record: it stops the run instead.
   private async writeTwenty<T extends { id: string }>(
     object: 'person' | 'company',
     operation: 'create' | 'update',
     writes: PendingWrite<T>[],
     direction: 'pull' | 'push' = 'pull',
   ): Promise<void> {
-    if (writes.length === 0) {
-      return;
+    for (let index = 0; index < writes.length; index += MUTATION_BATCH_SIZE) {
+      await this.writeTwentyBatch(
+        object,
+        operation,
+        writes.slice(index, index + MUTATION_BATCH_SIZE),
+        direction,
+      );
+    }
+  }
+
+  // A create Twenty refused may still have saved records: those are found by
+  // their Zoho link and kept, not created a second time.
+  private async withoutSavedCreates<T>(
+    object: 'person' | 'company',
+    writes: PendingWrite<T>[],
+  ): Promise<PendingWrite<T>[]> {
+    const zohoIds = writes
+      .map((pending) => pending.zohoId)
+      .filter((id): id is string => Boolean(id));
+
+    if (zohoIds.length === 0) {
+      return writes;
     }
 
+    const saved = new Map<string, unknown>(
+      object === 'person'
+        ? (await this.deps.twenty.findPeopleByZohoIds(zohoIds)).map(
+            (person) => [person.zohoContactId as string, person],
+          )
+        : (await this.deps.twenty.findCompaniesByZohoIds(zohoIds)).map(
+            (company) => [company.zohoAccountId as string, company],
+          ),
+    );
+
+    return writes.filter((pending) => {
+      const record = pending.zohoId ? saved.get(pending.zohoId) : undefined;
+
+      if (record) {
+        pending.onWritten?.(record as T);
+      }
+
+      return !record;
+    });
+  }
+
+  private async writeTwentyBatch<T extends { id: string }>(
+    object: 'person' | 'company',
+    operation: 'create' | 'update',
+    writes: PendingWrite<T>[],
+    direction: 'pull' | 'push',
+  ): Promise<void> {
     const write = (data: Record<string, unknown>[]): Promise<T[]> => {
       const twenty = this.deps.twenty;
 
@@ -851,16 +940,26 @@ export class SyncEngine {
       );
 
       return;
-    } catch {
-      // fall through to one by one
+    } catch (error) {
+      if (isRateLimited(error)) {
+        throw error;
+      }
     }
 
-    for (const pending of writes) {
+    const retries =
+      operation === 'create'
+        ? await this.withoutSavedCreates(object, writes)
+        : writes;
+
+    for (const pending of retries) {
       try {
         const [record] = await write([pending.data]);
 
         pending.onWritten?.(record);
       } catch (error) {
+        if (isRateLimited(error)) {
+          throw error;
+        }
         if (
           object === 'person' &&
           error instanceof TwentyApiError &&
@@ -885,11 +984,15 @@ export class SyncEngine {
                 'Saved without its phone numbers: Twenty did not accept them as valid.',
             });
             continue;
-          } catch {
+          } catch (retryError) {
+            if (isRateLimited(retryError)) {
+              throw retryError;
+            }
             // report the original error below
           }
         }
 
+        pending.onFailed?.();
         this.recordError({
           direction,
           object,

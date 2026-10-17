@@ -35,6 +35,10 @@ const CONNECTION_SETTLING_MS = 2 * 60 * 1000;
 const CONNECTION_RETRY_MS = 15 * 1000;
 const CONNECTING_MESSAGE =
   'Connecting to Zoho: the first sync starts in a moment.';
+// Twenty counts an app's requests per minute.
+const RATE_LIMIT_RETRY_MS = 60 * 1000;
+const RATE_LIMITED_MESSAGE =
+  "Twenty's limit on requests from apps was reached: the sync continues in a minute.";
 
 type RunOptions = {
   store: KeyValueStore;
@@ -49,6 +53,8 @@ type RunOptions = {
   lockTtlMs: number;
   now?: () => number;
 };
+
+const NOTHING_DONE = 'Everything was already in step.';
 
 const summary = (counts: SyncStatus['totals']): string => {
   const parts = [
@@ -71,7 +77,7 @@ const summary = (counts: SyncStatus['totals']): string => {
   ].filter(([count]) => (count as number) > 0);
 
   return parts.length === 0
-    ? 'Everything was already in step.'
+    ? NOTHING_DONE
     : `${parts.map(([count, text]) => `${count} ${text}`).join(', ')}.`;
 };
 
@@ -258,13 +264,16 @@ export const runSync = async ({
     }
 
     const outcome = result.counts.errors > 0 ? 'partial' : 'ok';
-    const message = `${summary(result.counts)}${
-      result.moreWorkPending
-        ? result.initialImportDone
-          ? ' More changes are waiting and will follow shortly.'
-          : ' The first import from Zoho continues in the next run.'
-        : ''
-    }`;
+    const done = summary(result.counts);
+    const message = result.rateLimited
+      ? `${done === NOTHING_DONE ? '' : `${done} `}${RATE_LIMITED_MESSAGE}`
+      : `${done}${
+          result.moreWorkPending
+            ? result.initialImportDone
+              ? ' More changes are waiting and will follow shortly.'
+              : ' The first import from Zoho continues in the next run.'
+            : ''
+        }`;
     const status = await updateStatus(store, (current) => ({
       ...current,
       running: false,
@@ -292,6 +301,7 @@ export const runSync = async ({
       continueSoon:
         result.moreWorkPending &&
         (!result.initialImportDone || result.backfillRunning),
+      ...(result.rateLimited ? { retryAfterMs: RATE_LIMIT_RETRY_MS } : {}),
       status,
     };
   } finally {

@@ -6,6 +6,7 @@ import type { KeyValueStore } from 'src/sync/state';
 import {
   graphqlErrorFromBody,
   type GraphqlRequest,
+  TwentyApiError,
   TwentyGateway,
 } from 'src/twenty/gateway';
 
@@ -35,6 +36,9 @@ export const applicationGraphql = (): GraphqlRequest => {
         graphqlErrorFromBody(error.body)
       ) {
         throw graphqlErrorFromBody(error.body);
+      }
+      if (error instanceof RestApiClientError && error.status === 429) {
+        throw new TwentyApiError(error.message, ['RATE_LIMITED']);
       }
 
       throw error;

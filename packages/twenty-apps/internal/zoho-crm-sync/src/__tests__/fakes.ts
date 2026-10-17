@@ -1,6 +1,7 @@
 import type { TwentyApi, ZohoApi } from 'src/sync/engine';
 import type { TwentyCompany, TwentyPerson } from 'src/sync/mapping';
 import type { KeyValueStore } from 'src/sync/state';
+import { MUTATION_BATCH_SIZE, TwentyApiError } from 'src/twenty/gateway';
 import type { ZohoWriteResult } from 'src/zoho/client';
 
 // In-memory stand-ins for Zoho and Twenty, close enough to the real APIs for
@@ -217,12 +218,28 @@ const merge = (target: any, data: Record<string, unknown>) => {
   }
 };
 
+export const rateLimitError = () =>
+  new TwentyApiError(
+    'Rate limit exceeded for application: 500 requests per 60s.',
+    ['RATE_LIMITED'],
+  );
+
+type WriteKind =
+  'createPeople' | 'updatePeople' | 'createCompanies' | 'updateCompanies';
+
 export class FakeTwenty implements TwentyApi {
   people = new Map<string, Stored<TwentyPerson>>();
   companies = new Map<string, Stored<TwentyCompany>>();
   members: { id: string; userEmail: string }[] = [];
   industries: string[] | null = null;
   rejectPhone: (data: Record<string, unknown>) => boolean = () => false;
+  // Like the real gateway, a write is sent in batches: earlier batches stay
+  // saved when a later one is refused.
+  refuseWrite: (
+    kind: WriteKind,
+    batch: Record<string, unknown>[],
+  ) => Error | null = () => null;
+  writeRequests = 0;
 
   constructor(private readonly clock: Clock) {}
 
@@ -434,12 +451,41 @@ export class FakeTwenty implements TwentyApi {
     };
   }
 
-  private async writePeople(data: Record<string, unknown>[], upsert: boolean) {
+  private async inBatches<T>(
+    kind: WriteKind,
+    data: Record<string, unknown>[],
+    writeBatch: (batch: Record<string, unknown>[]) => T[],
+  ): Promise<T[]> {
+    const written: T[] = [];
+
+    for (let index = 0; index < data.length; index += MUTATION_BATCH_SIZE) {
+      const batch = data.slice(index, index + MUTATION_BATCH_SIZE);
+      const refusal = this.refuseWrite(kind, batch);
+
+      this.writeRequests += 1;
+      if (refusal) {
+        throw refusal;
+      }
+      written.push(...writeBatch(batch));
+    }
+
+    return written;
+  }
+
+  private writePeople(
+    kind: WriteKind,
+    data: Record<string, unknown>[],
+    upsert: boolean,
+  ) {
+    return this.inBatches(kind, data, (batch) =>
+      this.writePeopleBatch(batch, upsert),
+    );
+  }
+
+  private writePeopleBatch(data: Record<string, unknown>[], upsert: boolean) {
     const updatedAt = new Date(this.clock.tick()).toISOString();
 
     if (data.some((entry) => entry.phones && this.rejectPhone(entry))) {
-      const { TwentyApiError } = await import('src/twenty/gateway');
-
       throw new TwentyApiError('Provided phone number is invalid', [
         'BAD_USER_INPUT',
         'INVALID_PHONE_NUMBER',
@@ -466,7 +512,17 @@ export class FakeTwenty implements TwentyApi {
     });
   }
 
-  private async writeCompanies(
+  private writeCompanies(
+    kind: WriteKind,
+    data: Record<string, unknown>[],
+    upsert: boolean,
+  ) {
+    return this.inBatches(kind, data, (batch) =>
+      this.writeCompaniesBatch(batch, upsert),
+    );
+  }
+
+  private writeCompaniesBatch(
     data: Record<string, unknown>[],
     upsert: boolean,
   ) {
@@ -485,18 +541,18 @@ export class FakeTwenty implements TwentyApi {
   }
 
   createPeople(data: Record<string, unknown>[]) {
-    return this.writePeople(data, false);
+    return this.writePeople('createPeople', data, false);
   }
 
   updatePeople(data: Record<string, unknown>[]) {
-    return this.writePeople(data, true);
+    return this.writePeople('updatePeople', data, true);
   }
 
   createCompanies(data: Record<string, unknown>[]) {
-    return this.writeCompanies(data, false);
+    return this.writeCompanies('createCompanies', data, false);
   }
 
   updateCompanies(data: Record<string, unknown>[]) {
-    return this.writeCompanies(data, true);
+    return this.writeCompanies('updateCompanies', data, true);
   }
 }

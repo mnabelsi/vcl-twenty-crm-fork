@@ -1,9 +1,16 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 
-import { Clock, FakeTwenty, FakeZoho, memoryStore } from 'src/__tests__/fakes';
+import {
+  Clock,
+  FakeTwenty,
+  FakeZoho,
+  memoryStore,
+  rateLimitError,
+} from 'src/__tests__/fakes';
 import type { SyncDirection } from 'src/sync/config';
 import { SyncEngine } from 'src/sync/engine';
 import { loadState } from 'src/sync/state';
+import { TwentyApiError } from 'src/twenty/gateway';
 
 let clock: Clock;
 let zoho: FakeZoho;
@@ -402,6 +409,86 @@ describe('steady state', () => {
     await runOnce({ direction: 'ZOHO_TO_TWENTY' });
 
     expect(zoho.writes).toEqual([]);
+  });
+});
+
+describe('when Twenty refuses writes', () => {
+  const addAccounts = (count: number) =>
+    Array.from({ length: count }, (_, index) =>
+      zoho.add('Accounts', { Account_Name: `Fictitious Trading ${index}` }),
+    );
+
+  const zohoIdsInTwenty = () =>
+    companies()
+      .map((company) => company.zohoAccountId)
+      .filter(Boolean);
+
+  it('creates each record once when a later batch of the same page is refused', async () => {
+    addAccounts(120);
+    twenty.refuseWrite = (kind, batch) =>
+      kind === 'createCompanies' &&
+      batch.some((entry) => entry.name === 'Fictitious Trading 110')
+        ? new TwentyApiError('Invalid company', ['BAD_USER_INPUT'])
+        : null;
+
+    const result = await runOnce({ direction: 'ZOHO_TO_TWENTY' });
+
+    expect(companies()).toHaveLength(119);
+    expect(new Set(zohoIdsInTwenty()).size).toBe(119);
+    expect(result.counts.companiesCreated).toBe(119);
+    expect(result.errors.map((error) => error.label)).toEqual([
+      'Fictitious Trading 110',
+    ]);
+  });
+
+  it('stops at the request limit and redoes the page next run, without copies or gaps', async () => {
+    const existing = twenty.addCompany({ name: 'Fictitious Trading 7 LLC' });
+
+    addAccounts(120);
+    twenty.refuseWrite = () =>
+      twenty.writeRequests >= 1 ? rateLimitError() : null;
+
+    const stopped = await runOnce({ direction: 'ZOHO_TO_TWENTY' });
+
+    expect(stopped.rateLimited).toBe(true);
+    expect(stopped.moreWorkPending).toBe(true);
+    expect(stopped.errors).toEqual([]);
+
+    twenty.refuseWrite = () => null;
+    const resumed = await runOnce({ direction: 'ZOHO_TO_TWENTY' });
+
+    expect(resumed.rateLimited).toBe(false);
+    expect(resumed.errors).toEqual([]);
+    expect(companies()).toHaveLength(120);
+    expect(new Set(zohoIdsInTwenty()).size).toBe(120);
+    expect(twenty.companies.get(existing.id)?.zohoAccountId).toBeTruthy();
+  });
+
+  it('matches the same existing company again after a refused link', async () => {
+    const gulf = twenty.addCompany({ name: 'Gulf Energy Oman' });
+    const account = zoho.add('Accounts', { Account_Name: 'Gulf Energy Oman' });
+
+    zoho.add('Contacts', {
+      Last_Name: 'Mansour',
+      Account_Name: { id: account.id },
+    });
+
+    let refusals = 0;
+
+    twenty.refuseWrite = (kind, batch) =>
+      kind === 'updateCompanies' &&
+      batch.some((entry) => entry.id === gulf.id) &&
+      refusals++ < 2
+        ? new TwentyApiError('Temporarily unavailable', [
+            'INTERNAL_SERVER_ERROR',
+          ])
+        : null;
+
+    await runOnce({ direction: 'ZOHO_TO_TWENTY' });
+
+    expect(companies()).toHaveLength(1);
+    expect(twenty.companies.get(gulf.id)?.zohoAccountId).toBe(account.id);
+    expect(people()[0]?.companyId).toBe(gulf.id);
   });
 });
 
