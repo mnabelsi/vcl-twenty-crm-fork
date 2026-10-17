@@ -1,0 +1,17 @@
+# Add this service to the docker-compose.yml that runs Twenty, so the Twenty
+# server reaches it as http://searxng:8080 (the SearXNG URL setting of the app).
+# ./searxng must hold the settings.yml next to this file.
+services:
+  searxng:
+    image: docker.io/searxng/searxng:latest
+    restart: always
+    volumes:
+      - ./searxng:/etc/searxng
+      - searxng-data:/var/cache/searxng
+    environment:
+      SEARXNG_BASE_URL: http://searxng:8080/
+      SEARXNG_SECRET: ${SEARXNG_SECRET:?generate one with openssl rand -hex 32}
+    # No published port: only containers on the same network can search.
+
+volumes:
+  searxng-data:

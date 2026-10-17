@@ -421,9 +421,11 @@ export const companyDataForTwenty = (
   existing: TwentyCompany | null,
 ): Record<string, unknown> => {
   const currentUrl = cleanText(existing?.domainName?.primaryLinkUrl);
+  // A Zoho account without a website leaves a website found in Twenty alone.
   const keepUrl =
     currentUrl !== '' &&
-    websiteHost(currentUrl) === websiteHost(values.website);
+    (values.website === '' ||
+      websiteHost(currentUrl) === websiteHost(values.website));
 
   return {
     name: values.name,

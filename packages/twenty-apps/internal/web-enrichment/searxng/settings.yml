@@ -1,0 +1,34 @@
+# SearXNG for the Web Enrichment app: private, JSON output on, no limiter.
+# Only the Twenty server should reach it; do not publish it on the internet.
+use_default_settings: true
+
+server:
+  # Overridden by the SEARXNG_SECRET environment variable.
+  secret_key: "replace-me"
+  limiter: false
+  image_proxy: false
+
+search:
+  safe_search: 0
+  formats:
+    - html
+    - json
+
+outgoing:
+  request_timeout: 6.0
+  max_request_timeout: 15.0
+
+# Engines that understand "site:linkedin.com/in" queries.
+engines:
+  - name: google
+    disabled: false
+  - name: bing
+    disabled: false
+  - name: duckduckgo
+    disabled: false
+  - name: brave
+    disabled: false
+  - name: startpage
+    disabled: false
+  - name: mojeek
+    disabled: false

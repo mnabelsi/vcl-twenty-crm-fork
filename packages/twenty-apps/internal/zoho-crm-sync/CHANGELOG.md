@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.2
+
+- A Zoho account without a website no longer clears a website filled in Twenty (by hand or by the Web Enrichment app).
+
 ## 0.1.1
 
 - When Twenty's limit on requests from apps is reached, the run stops and continues a minute later, picking up the unfinished page instead of skipping it.

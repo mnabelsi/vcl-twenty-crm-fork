@@ -1,0 +1,39 @@
+{
+  "name": "web-enrichment",
+  "version": "0.1.0",
+  "description": "Finds missing company websites and the LinkedIn profiles of people with a self-hosted SearXNG search",
+  "private": true,
+  "license": "UNLICENSED",
+  "author": "VCL Solutions",
+  "engines": {
+    "node": "^24.5.0",
+    "npm": "please-use-yarn",
+    "yarn": ">=4.0.2",
+    "twenty": ">=2.48.0"
+  },
+  "keywords": [
+    "twenty-app",
+    "enrichment",
+    "linkedin",
+    "searxng"
+  ],
+  "packageManager": "yarn@4.13.0",
+  "scripts": {
+    "twenty": "twenty",
+    "lint": "oxlint -c .oxlintrc.json .",
+    "lint:fix": "oxlint --fix -c .oxlintrc.json .",
+    "typecheck": "tsgo --noEmit -p tsconfig.spec.json",
+    "test": "vitest run --config vitest.unit.config.ts",
+    "test:unit": "vitest run --config vitest.unit.config.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^24.7.2",
+    "@typescript/native-preview": "^7.0.0-dev.20260116.1",
+    "oxlint": "^0.16.0",
+    "twenty-client-sdk": "2.48.0",
+    "twenty-sdk": "2.48.0",
+    "typescript": "^5.9.3",
+    "vite-tsconfig-paths": "^4.2.1",
+    "vitest": "^4.0.0"
+  }
+}

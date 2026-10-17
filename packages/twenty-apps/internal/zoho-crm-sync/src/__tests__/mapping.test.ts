@@ -233,4 +233,30 @@ describe('company round trip', () => {
       companyFingerprint(fromZoho),
     );
   });
+
+  it('keeps a Twenty website when the Zoho account has none', () => {
+    const fromZoho = companyValuesFromZoho({
+      id: 'z1',
+      Account_Name: 'Desert Falcon Logistics',
+      Modified_Time: '2026-10-17T08:00:00+00:00',
+    });
+    const existing = {
+      id: 'c1',
+      name: 'Desert Falcon Logistics',
+      domainName: { primaryLinkUrl: 'desertfalcon.ae' },
+    } as any;
+
+    expect(
+      (companyDataForTwenty(fromZoho, existing) as any).domainName
+        .primaryLinkUrl,
+    ).toBe('desertfalcon.ae');
+    expect(
+      (
+        companyDataForTwenty(
+          { ...fromZoho, website: 'https://bluewave.example' },
+          existing,
+        ) as any
+      ).domainName.primaryLinkUrl,
+    ).toBe('https://bluewave.example');
+  });
 });
