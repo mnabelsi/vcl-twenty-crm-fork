@@ -6,6 +6,7 @@ export type EnrichmentConfig = {
   mode: EnrichmentMode;
   dailySearchLimit: number;
   secondsBetweenSearches: number;
+  linkByEmailDomain: boolean;
 };
 
 const MODES: EnrichmentMode[] = ['ALL', 'WEBSITES', 'LINKEDIN', 'PAUSED'];
@@ -30,5 +31,6 @@ export const readConfig = (): EnrichmentConfig => {
     mode: MODES.includes(mode) ? mode : 'ALL',
     dailySearchLimit: Math.floor(readNumber('DAILY_SEARCH_LIMIT', 1500)),
     secondsBetweenSearches: readNumber('SECONDS_BETWEEN_SEARCHES', 5),
+    linkByEmailDomain: readVariable('LINK_BY_EMAIL_DOMAIN') !== 'OFF',
   };
 };

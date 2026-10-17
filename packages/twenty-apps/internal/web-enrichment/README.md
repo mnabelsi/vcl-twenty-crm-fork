@@ -27,6 +27,21 @@ Twenty allows one company per website. A company whose website already belongs t
 
 To search a record again, empty its *Website search* or *LinkedIn search* field.
 
+## People linked to companies by email domain
+
+Every 30 minutes the app learns the **Email domains** of each company: its website, plus the work domains of its people used by two of them (or by one, when the domain looks like the company's name). Unlike the website, a domain can belong to several companies, so a group and its branches share it. You can add domains the app missed; it never removes one.
+
+Then, for every person:
+
+| Situation | What the app does | Company check |
+| --- | --- | --- |
+| No company, and one company has the person's domain | Links the person to it | **Linked by email domain** |
+| No company, several companies have the domain (a group and its branches) | Suggests the group's company, does not link | **Several companies fit** |
+| No company, no company has the domain, and two or more people use it | Nothing to link to yet | **No company for this domain** |
+| Linked to a company, but the domain belongs only to other companies (a duplicate, a job change, a wrong email) | Suggests the other company, **does not move the person** | **Email of another company** |
+
+These people are listed in **Companies to check** with the *Suggested company*. Fix the company (or merge duplicate companies), or set *Company check* to **Checked** to keep things as they are; the app then leaves that person alone. A person's existing company is never changed by the app. Turn this off with the *Link people to companies by email domain* setting.
+
 ## How fast
 
 Every 10 minutes the app runs a few searches, spread over the day up to **Searches per day** (default 1,500), with a pause between two searches (default 5 seconds). New records are handled first, then the backfill continues with older ones. Websites from emails cost no search and are filled in at once.

@@ -1,3 +1,4 @@
+import type { CompanyCheck } from 'src/constants/search-outcomes';
 import type { KeyValueStore } from 'src/enrich/state';
 import { hostOf } from 'src/enrich/normalize';
 import type { SearchResponse, SearchResult } from 'src/search/searxng';
@@ -35,6 +36,7 @@ type StoredCompany = {
   domainName: { primaryLinkUrl: string };
   websiteSearch: string | null;
   websiteSuggestion: { primaryLinkUrl: string } | null;
+  emailDomains: string[];
   createdAt: number;
 };
 
@@ -47,6 +49,8 @@ type StoredPerson = {
   linkedinLink: { primaryLinkUrl: string };
   linkedinSearch: string | null;
   linkedinSuggestion: { primaryLinkUrl: string } | null;
+  companyCheck: CompanyCheck | null;
+  suggestedCompanyId: string | null;
   createdAt: number;
 };
 
@@ -84,6 +88,7 @@ export class FakeTwenty implements TwentyApi {
       domainName: { primaryLinkUrl: '' },
       websiteSearch: null,
       websiteSuggestion: null,
+      emailDomains: [],
       createdAt: counter,
       ...data,
     };
@@ -107,6 +112,8 @@ export class FakeTwenty implements TwentyApi {
       linkedinLink: { primaryLinkUrl: '' },
       linkedinSearch: null,
       linkedinSuggestion: null,
+      companyCheck: null,
+      suggestedCompanyId: null,
       createdAt: counter,
       ...data,
     };
@@ -163,6 +170,29 @@ export class FakeTwenty implements TwentyApi {
           : '',
       }),
     );
+  }
+
+  async listCompaniesForLinking() {
+    return [...this.companies.values()].map((company) => ({
+      id: company.id,
+      name: company.name,
+      website: company.domainName.primaryLinkUrl,
+      sharedWebsite:
+        company.websiteSearch === 'SHARED'
+          ? (company.websiteSuggestion?.primaryLinkUrl ?? '')
+          : '',
+      emailDomains: [...company.emailDomains],
+    }));
+  }
+
+  async listPeopleForLinking() {
+    return [...this.people.values()].map((person) => ({
+      id: person.id,
+      companyId: person.companyId,
+      emails: [...person.emails],
+      companyCheck: person.companyCheck,
+      suggestedCompanyId: person.suggestedCompanyId,
+    }));
   }
 
   async updateCompanies(data: Record<string, unknown>[]) {

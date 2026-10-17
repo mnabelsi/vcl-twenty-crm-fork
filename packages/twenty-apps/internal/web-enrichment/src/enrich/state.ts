@@ -1,3 +1,5 @@
+import type { LinkCounts } from 'src/link/linker';
+
 // What the app remembers between runs, in the application key-value store.
 
 export type KeyValueStore = {
@@ -53,7 +55,10 @@ export type RunStatus = {
   errors: string[];
 };
 
+export type LinkStatus = { finishedAt: string; counts: LinkCounts };
+
 const LOCK_KEY = 'web-enrichment:lock';
+const LINK_STATUS_KEY = 'web-enrichment:link-status';
 const STATUS_KEY = 'web-enrichment:status';
 const SEARCHES_KEY = 'web-enrichment:searches';
 
@@ -86,6 +91,21 @@ export const saveStatus = (
   store: KeyValueStore,
   status: RunStatus,
 ): Promise<void> => store.set(STATUS_KEY, status);
+
+export const linkSweepDue = async (
+  store: KeyValueStore,
+  now: number,
+  everyMs: number,
+): Promise<boolean> => {
+  const status = await store.get<LinkStatus>(LINK_STATUS_KEY);
+
+  return !status || now - Date.parse(status.finishedAt) >= everyMs;
+};
+
+export const saveLinkStatus = (
+  store: KeyValueStore,
+  status: LinkStatus,
+): Promise<void> => store.set(LINK_STATUS_KEY, status);
 
 type Lock = { owner: string; until: number };
 

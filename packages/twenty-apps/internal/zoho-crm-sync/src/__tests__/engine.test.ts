@@ -291,6 +291,30 @@ describe('steady state', () => {
     expect(zoho.writes).toEqual([]);
   });
 
+  it('keeps a company linked in Twenty when the Zoho contact has no account', async () => {
+    const contact = zoho.add('Contacts', {
+      First_Name: 'Omar',
+      Last_Name: 'Farouk',
+      Email: 'omar@mountainvalley.example',
+    });
+
+    await runOnce({ direction: 'ZOHO_TO_TWENTY' });
+
+    const omar = people().find(
+      (person) => person.zohoContactId === contact.id,
+    )!;
+    const valley = companies()[0];
+
+    twenty.editPerson(omar.id, { companyId: valley.id });
+    zoho.edit('Contacts', contact.id, { Title: 'Buyer' });
+    await runOnce({ direction: 'ZOHO_TO_TWENTY' });
+
+    expect(twenty.people.get(omar.id)).toMatchObject({
+      jobTitle: 'Buyer',
+      companyId: valley.id,
+    });
+  });
+
   it('keeps the latest edit when both sides changed', async () => {
     const nadia = people()[0];
 

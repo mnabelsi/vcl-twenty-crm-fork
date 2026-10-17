@@ -5,6 +5,7 @@ import {
   APP_DISPLAY_NAME,
   APPLICATION_UNIVERSAL_IDENTIFIER,
   VARIABLE_DAILY_SEARCH_LIMIT_UNIVERSAL_IDENTIFIER,
+  VARIABLE_LINK_BY_EMAIL_DOMAIN_UNIVERSAL_IDENTIFIER,
   VARIABLE_MODE_UNIVERSAL_IDENTIFIER,
   VARIABLE_SEARXNG_AUTHORIZATION_UNIVERSAL_IDENTIFIER,
   VARIABLE_SEARXNG_URL_UNIVERSAL_IDENTIFIER,
@@ -44,6 +45,18 @@ export default defineApplication({
         { label: 'Paused', value: 'PAUSED' },
       ],
       value: 'ALL',
+    },
+    LINK_BY_EMAIL_DOMAIN: {
+      universalIdentifier: VARIABLE_LINK_BY_EMAIL_DOMAIN_UNIVERSAL_IDENTIFIER,
+      label: 'Link people to companies by email domain',
+      description:
+        'People without a company are linked to the one company their work email belongs to; other cases are listed in Companies to check. Existing links are never changed.',
+      type: FieldType.SELECT,
+      options: [
+        { label: 'On', value: 'ON' },
+        { label: 'Off', value: 'OFF' },
+      ],
+      value: 'ON',
     },
     DAILY_SEARCH_LIMIT: {
       universalIdentifier: VARIABLE_DAILY_SEARCH_LIMIT_UNIVERSAL_IDENTIFIER,

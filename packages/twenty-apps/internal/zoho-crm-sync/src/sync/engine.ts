@@ -837,17 +837,18 @@ export class SyncEngine {
   }
 
   // The person's company follows the Zoho account only when the account
-  // changed; a Twenty company with no Zoho link is otherwise left alone.
+  // changed. A Zoho contact without an account leaves the Twenty company
+  // alone: it may have been linked in Twenty, by hand or by email domain.
   private companyChange(
     values: PersonValues,
     twentyValues: PersonValues,
     zohoCompanyId: string | null,
   ): Record<string, unknown> {
-    if (values.zohoAccountId === twentyValues.zohoAccountId) {
+    if (
+      values.zohoAccountId === twentyValues.zohoAccountId ||
+      values.zohoAccountId === ''
+    ) {
       return {};
-    }
-    if (values.zohoAccountId === '') {
-      return { companyId: null };
     }
 
     return zohoCompanyId ? { companyId: zohoCompanyId } : {};

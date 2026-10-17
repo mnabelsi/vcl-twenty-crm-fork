@@ -3,3 +3,6 @@ export type WebsiteOutcome =
 
 export type LinkedinOutcome =
   'FOUND' | 'REVIEW' | 'NOT_FOUND' | 'NOT_ENOUGH_INFO';
+
+export type CompanyCheck =
+  'LINKED' | 'CHOOSE' | 'NO_COMPANY_FOR_DOMAIN' | 'OTHER_COMPANY' | 'CHECKED';

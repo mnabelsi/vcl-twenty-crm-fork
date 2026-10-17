@@ -1,6 +1,6 @@
 {
   "name": "web-enrichment",
-  "version": "0.1.2",
+  "version": "0.2.0",
   "description": "Finds missing company websites and the LinkedIn profiles of people with a self-hosted SearXNG search",
   "private": true,
   "license": "UNLICENSED",

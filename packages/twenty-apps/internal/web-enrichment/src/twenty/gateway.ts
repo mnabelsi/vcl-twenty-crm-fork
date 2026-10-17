@@ -1,3 +1,6 @@
+import type { CompanyCheck } from 'src/constants/search-outcomes';
+import type { CompanyForLinking, PersonForLinking } from 'src/link/domains';
+
 // Reads and writes Twenty people and companies through the GraphQL API.
 
 export type GraphqlRequest = (
@@ -64,6 +67,8 @@ export type TwentyApi = {
   pagePeopleWithoutLinkedin: (
     after: string | null,
   ) => Promise<Page<PersonToEnrich>>;
+  listCompaniesForLinking: () => Promise<CompanyForLinking[]>;
+  listPeopleForLinking: () => Promise<PersonForLinking[]>;
   updateCompanies: (data: Record<string, unknown>[]) => Promise<void>;
   updatePeople: (data: Record<string, unknown>[]) => Promise<void>;
 };
@@ -92,6 +97,35 @@ const pageOf = <T>(connection: any, map: (node: any) => T): Page<T> => ({
   endCursor: connection?.pageInfo?.endCursor ?? null,
   hasNextPage: Boolean(connection?.pageInfo?.hasNextPage),
 });
+
+// Every record of a collection, a page at a time.
+const listAll = async <T>(
+  request: GraphqlRequest,
+  collection: 'people' | 'companies',
+  fields: string,
+  map: (node: any) => T,
+): Promise<T[]> => {
+  const records: T[] = [];
+  let after: string | null = null;
+
+  do {
+    const data = await request(
+      `query All($after: String) {
+        ${collection}(first: 200, after: $after) {
+          edges { node { ${fields} } }
+          pageInfo { hasNextPage endCursor }
+        }
+      }`,
+      { after },
+    );
+    const page = pageOf(data[collection], map);
+
+    records.push(...page.records);
+    after = page.hasNextPage ? page.endCursor : null;
+  } while (after);
+
+  return records;
+};
 
 export const twentyGateway = (request: GraphqlRequest): TwentyApi => ({
   // Newest first, so records added after the backfill started come quickly.
@@ -171,6 +205,37 @@ export const twentyGateway = (request: GraphqlRequest): TwentyApi => ({
       companyName: node.company?.name ?? '',
     }));
   },
+
+  listCompaniesForLinking: () =>
+    listAll(
+      request,
+      'companies',
+      'id name domainName { primaryLinkUrl } websiteSearch websiteSuggestion { primaryLinkUrl } emailDomains',
+      (node) => ({
+        id: node.id,
+        name: node.name ?? '',
+        website: node.domainName?.primaryLinkUrl ?? '',
+        sharedWebsite:
+          node.websiteSearch === 'SHARED'
+            ? (node.websiteSuggestion?.primaryLinkUrl ?? '')
+            : '',
+        emailDomains: node.emailDomains ?? [],
+      }),
+    ),
+
+  listPeopleForLinking: () =>
+    listAll(
+      request,
+      'people',
+      'id companyId emails { primaryEmail additionalEmails } companyCheck suggestedCompanyId',
+      (node) => ({
+        id: node.id,
+        companyId: node.companyId ?? null,
+        emails: emailsOf(node.emails),
+        companyCheck: (node.companyCheck ?? null) as CompanyCheck | null,
+        suggestedCompanyId: node.suggestedCompanyId ?? null,
+      }),
+    ),
 
   // Partial updates: only the fields present in each entry change.
   updateCompanies: async (data) => {

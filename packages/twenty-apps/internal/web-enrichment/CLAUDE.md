@@ -8,6 +8,7 @@ Rules for this app:
 - Only confident matches are written to Domain or Linkedin; anything less goes to the suggestion field with the "To review" status.
 - A search that got no answer (blocked or timed-out engines) never marks a record "Not found": it leaves the record undecided for a later run.
 - The app never deletes and never overwrites a Domain or Linkedin that is already filled in.
+- Linking by email domain only fills in a missing company. A person's existing company is never changed; doubts go to the Company check field.
 - Fixtures use fictitious people and companies only.
 - Checks: `yarn lint && yarn typecheck && yarn test`.
 

@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.3
+
+- A Zoho contact without an account no longer removes the company a person was given in Twenty (by hand or by email domain).
+
 ## 0.1.2
 
 - A Zoho account without a website no longer clears a website filled in Twenty (by hand or by the Web Enrichment app).
