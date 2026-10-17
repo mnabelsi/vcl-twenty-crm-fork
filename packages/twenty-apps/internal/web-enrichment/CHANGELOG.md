@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.2
+
+- Government email addresses without their country ("moe.gov" for "moe.gov.ae") no longer count as a company website.
+
 ## 0.1.1
 
 - A company whose website already belongs to another company is marked "Website of another company" instead of going to the review list.

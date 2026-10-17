@@ -7,7 +7,7 @@ import {
   siteLabel,
   words,
 } from 'src/enrich/normalize';
-import { isPersonalMailDomain } from 'src/enrich/website';
+import { isWorkMailDomain } from 'src/enrich/website';
 import type { SearchResult } from 'src/search/searxng';
 
 export type LinkedinDecision = {
@@ -48,8 +48,7 @@ const nameParts = (person: PersonToFind): [string, string] | null => {
 const workDomain = (person: PersonToFind): string | null =>
   person.emails
     .map((email) => registrableDomain(email.split('@')[1]?.trim() ?? ''))
-    .find((domain) => domain.includes('.') && !isPersonalMailDomain(domain)) ??
-  null;
+    .find(isWorkMailDomain) ?? null;
 
 // What to search for, or null when the name alone could be anyone.
 export const linkedinQuery = (person: PersonToFind): string | null => {

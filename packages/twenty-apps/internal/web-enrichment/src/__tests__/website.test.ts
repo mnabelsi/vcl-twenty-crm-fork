@@ -64,6 +64,20 @@ describe('websiteFromEmails', () => {
     });
   });
 
+  it('ignores government addresses missing their country', () => {
+    expect(
+      websiteFromEmails('Fictitious Land Department', [
+        'a@fland.gov',
+        'b@fland.gov',
+        'c@fland.gov.ae',
+      ]),
+    ).toEqual({
+      outcome: 'FROM_EMAILS',
+      url: 'https://fland.gov.ae',
+      suggestion: null,
+    });
+  });
+
   it('says nothing without a work email', () => {
     expect(
       websiteFromEmails('Desert Falcon', ['a@gmail.com', 'b@hotmail.co.uk']),

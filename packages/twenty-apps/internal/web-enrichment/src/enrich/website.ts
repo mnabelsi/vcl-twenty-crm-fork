@@ -55,9 +55,16 @@ const PERSONAL_MAIL_DOMAINS = new Set([
   'link.net',
 ]);
 
-export const isPersonalMailDomain = (domain: string): boolean =>
+const isPersonalMailDomain = (domain: string): boolean =>
   PERSONAL_MAIL_DOMAINS.has(domain) ||
   PERSONAL_MAIL_LABELS.has(siteLabel(domain));
+
+// A company's own mail domain. Gulf government addresses typed without their
+// country ("moe.gov" for "moe.gov.ae") are typos, not websites.
+export const isWorkMailDomain = (domain: string): boolean =>
+  domain.includes('.') &&
+  !domain.endsWith('.gov') &&
+  !isPersonalMailDomain(domain);
 
 // Sites that talk about companies rather than belong to them.
 const DIRECTORY_LABELS = new Set([
@@ -147,7 +154,7 @@ export const websiteFromEmails = (
   for (const email of emails) {
     const domain = registrableDomain(email.split('@')[1]?.trim() ?? '');
 
-    if (domain.includes('.') && !isPersonalMailDomain(domain)) {
+    if (isWorkMailDomain(domain)) {
       counts.set(domain, (counts.get(domain) ?? 0) + 1);
     }
   }
