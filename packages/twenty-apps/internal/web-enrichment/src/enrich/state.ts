@@ -10,6 +10,7 @@ export type EnrichmentCounts = {
   websitesFromEmails: number;
   websitesFound: number;
   websitesToReview: number;
+  websitesShared: number;
   websitesNotFound: number;
   profilesFound: number;
   profilesToReview: number;
@@ -23,6 +24,7 @@ export const emptyCounts = (): EnrichmentCounts => ({
   websitesFromEmails: 0,
   websitesFound: 0,
   websitesToReview: 0,
+  websitesShared: 0,
   websitesNotFound: 0,
   profilesFound: 0,
   profilesToReview: 0,

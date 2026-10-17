@@ -46,5 +46,12 @@ export default defineField({
       position: 3,
       color: 'gray',
     },
+    {
+      id: '665e7276-9b18-47b4-9ca0-a447878ccd84',
+      value: 'SHARED',
+      label: 'Website of another company',
+      position: 4,
+      color: 'blue',
+    },
   ],
 });

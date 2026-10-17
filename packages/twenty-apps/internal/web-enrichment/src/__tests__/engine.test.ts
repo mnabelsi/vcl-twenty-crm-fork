@@ -91,7 +91,7 @@ describe('company websites', () => {
     });
   });
 
-  it('suggests instead of filling a website another company already has', async () => {
+  it('keeps a website another company already has as a suggestion only', async () => {
     twenty.addCompany('Desert Falcon Logistics', {
       domainName: { primaryLinkUrl: 'https://desertfalcon.ae' },
       websiteSearch: 'FOUND',
@@ -106,7 +106,7 @@ describe('company websites', () => {
     await runOnce({ mode: 'WEBSITES' });
 
     expect(twenty.companies.get(copy.id)).toMatchObject({
-      websiteSearch: 'REVIEW',
+      websiteSearch: 'SHARED',
       domainName: { primaryLinkUrl: '' },
       websiteSuggestion: { primaryLinkUrl: 'https://desertfalcon.ae' },
     });

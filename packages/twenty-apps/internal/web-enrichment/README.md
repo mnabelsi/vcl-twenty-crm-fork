@@ -23,7 +23,7 @@ Only confident matches are filled in:
 
 Two lists appear in the sidebar: **Websites to review** and **LinkedIn to review**. Copy a suggestion into Domain or Linkedin when it is right, then set the search field to Found (or Not found).
 
-A website already used by another company is never written twice (Twenty allows one company per website): it goes to review, since the two companies are probably duplicates.
+Twenty allows one company per website. A company whose website already belongs to another one (a branch such as "DHL Express - Bahrain" next to "DHL", or a duplicate) gets **Website of another company**, with the website as a suggestion; these stay out of the review list. Filter on that status to find branches or duplicates to merge.
 
 To search a record again, empty its *Website search* or *LinkedIn search* field.
 

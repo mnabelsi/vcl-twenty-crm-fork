@@ -289,15 +289,15 @@ export class EnrichmentEngine {
           ? { websiteSuggestion: link(decision.suggestion) }
           : {}),
       },
-      // Twenty keeps one company per website: when another company already
-      // has it, this one is likely a duplicate to look at.
+      // Twenty keeps one company per website: a branch whose website belongs
+      // to its parent, or a duplicate, keeps it as a suggestion only.
       ...(decision.url
         ? {
             fallback: {
-              outcome: 'REVIEW' as const,
+              outcome: 'SHARED' as const,
               data: {
                 id: company.id,
-                websiteSearch: 'REVIEW',
+                websiteSearch: 'SHARED',
                 websiteSearchedAt: searchedAt,
                 websiteSuggestion: link(decision.url),
               },
@@ -393,6 +393,7 @@ export class EnrichmentEngine {
             FROM_EMAILS: 'websitesFromEmails',
             FOUND: 'websitesFound',
             REVIEW: 'websitesToReview',
+            SHARED: 'websitesShared',
             NOT_FOUND: 'websitesNotFound',
           }
         : {
