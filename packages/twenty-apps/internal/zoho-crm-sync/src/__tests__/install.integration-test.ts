@@ -29,13 +29,14 @@ describe('Zoho CRM Sync installation', () => {
     ).toContain(APPLICATION_UNIVERSAL_IDENTIFIER);
   });
 
-  it('adds the Zoho link fields to people and companies', async () => {
+  it('adds the Zoho link fields to people, companies and opportunities', async () => {
     const body = await request('/graphql', {
       method: 'POST',
       body: JSON.stringify({
         query: `{
-          people(first: 1) { edges { node { id zohoContactId zohoSyncHash zohoSyncedAt } } }
-          companies(first: 1) { edges { node { id zohoAccountId zohoSyncHash zohoSyncedAt } } }
+          people(first: 1) { edges { node { id zohoContactId zohoSyncHash zohoFieldState zohoSyncedAt } } }
+          companies(first: 1) { edges { node { id zohoAccountId zohoSyncHash zohoFieldState zohoSyncedAt } } }
+          opportunities(first: 1) { edges { node { id zohoDealId zohoFieldState zohoSyncedAt } } }
         }`,
       }),
     });

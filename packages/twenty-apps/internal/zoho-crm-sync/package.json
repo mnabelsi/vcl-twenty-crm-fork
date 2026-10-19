@@ -1,7 +1,7 @@
 {
   "name": "zoho-crm-sync",
-  "version": "0.1.3",
-  "description": "Two-way sync of Zoho CRM Contacts and Accounts with Twenty People and Companies",
+  "version": "0.2.0",
+  "description": "Two-way sync of Zoho CRM Contacts, Accounts and Deals, with every field, with Twenty People, Companies and Opportunities",
   "private": true,
   "license": "UNLICENSED",
   "author": "VCL Solutions",

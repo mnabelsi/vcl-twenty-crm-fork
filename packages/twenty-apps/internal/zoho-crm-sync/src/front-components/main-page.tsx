@@ -17,7 +17,7 @@ type RunCounts = Record<string, number>;
 type SyncErrorEntry = {
   at: string;
   direction: 'pull' | 'push' | 'run';
-  object: 'company' | 'person' | 'run';
+  object: 'company' | 'person' | 'opportunity' | 'run';
   label: string;
   twentyId: string | null;
   zohoId: string | null;
@@ -42,12 +42,23 @@ type StatusResponse = {
     moreWorkPending: boolean;
     backfillRunning: boolean;
     zohoOrganization: string | null;
+    fieldSummary?: {
+      synced: Record<string, number>;
+      skipped: { module: string; field: string; reason: string }[];
+      warning: string | null;
+    } | null;
     recentErrors: SyncErrorEntry[];
   };
 };
 
 const SCOPES =
-  'ZohoCRM.modules.contacts.ALL,ZohoCRM.modules.accounts.ALL,ZohoCRM.org.READ';
+  'ZohoCRM.modules.contacts.ALL,ZohoCRM.modules.accounts.ALL,ZohoCRM.modules.deals.ALL,ZohoCRM.settings.fields.READ,ZohoCRM.org.READ';
+
+const MODULE_LABELS: Record<string, string> = {
+  Contacts: 'Contact fields mirrored',
+  Accounts: 'Account fields mirrored',
+  Deals: 'Deal fields mirrored',
+};
 
 const DIRECTION_LABELS: Record<string, string> = {
   TWO_WAY: 'Two-way',
@@ -141,7 +152,7 @@ const ZohoSyncPage = () => {
           : {
               title: 'Send unlinked Twenty records to Zoho?',
               subtitle:
-                'People and companies that have no Zoho record yet are created in Zoho (or linked to a Zoho record with the same email or account name). Records Twenty created from emails and meetings are left out.',
+                'People, companies and opportunities that have no Zoho record yet are created in Zoho (people and companies are linked to a Zoho record with the same email or account name instead). Records Twenty created from emails and meetings are left out.',
               confirmButtonText: 'Send to Zoho',
             },
       );
@@ -265,6 +276,8 @@ const ZohoSyncPage = () => {
           ? { text: 'Needs attention', color: colors.danger }
           : { text: 'Connected', color: colors.success };
   const totals = status.totals ?? {};
+  const fieldSummary = status.fieldSummary ?? null;
+  const needsNewScopes = /Reconnect Zoho/.test(fieldSummary?.warning ?? '');
   const counter = (label: string, value: number) => (
     <div
       key={label}
@@ -327,8 +340,9 @@ const ZohoSyncPage = () => {
         </span>
       </div>
       <p style={muted}>
-        Zoho Contacts and Accounts are kept in step with Twenty People and
-        Companies every five minutes. Direction:{' '}
+        Zoho Contacts, Accounts and Deals are kept in step with Twenty People,
+        Companies and Opportunities every five minutes, with every Zoho field.
+        Direction:{' '}
         {DIRECTION_LABELS[data.direction] ?? data.direction}. Data center:{' '}
         {data.dataCenter}
         {status.zohoOrganization
@@ -339,6 +353,7 @@ const ZohoSyncPage = () => {
 
       {(!data.configured ||
         showConnect ||
+        needsNewScopes ||
         status.lastRunOutcome === 'failed') && (
         <div style={card}>
           <p style={heading}>
@@ -461,19 +476,24 @@ const ZohoSyncPage = () => {
             'matched or created in Twenty',
             (totals.peopleCreated ?? 0) +
               (totals.companiesCreated ?? 0) +
+              (totals.opportunitiesCreated ?? 0) +
               (totals.peopleLinked ?? 0) +
               (totals.companiesLinked ?? 0),
           )}
           {counter(
             'updated in Twenty',
-            (totals.peopleUpdated ?? 0) + (totals.companiesUpdated ?? 0),
+            (totals.peopleUpdated ?? 0) +
+              (totals.companiesUpdated ?? 0) +
+              (totals.opportunitiesUpdated ?? 0),
           )}
           {counter(
             'created or updated in Zoho',
             (totals.zohoContactsCreated ?? 0) +
               (totals.zohoAccountsCreated ?? 0) +
+              (totals.zohoDealsCreated ?? 0) +
               (totals.zohoContactsUpdated ?? 0) +
-              (totals.zohoAccountsUpdated ?? 0),
+              (totals.zohoAccountsUpdated ?? 0) +
+              (totals.zohoDealsUpdated ?? 0),
           )}
         </div>
         <span style={{ fontSize: '12px', color: colors.muted }}>
@@ -541,6 +561,43 @@ const ZohoSyncPage = () => {
           )}
         </div>
       </div>
+
+      {fieldSummary && (
+        <div style={card}>
+          <p style={heading}>Zoho fields</p>
+          {fieldSummary.warning && (
+            <p style={{ ...muted, color: colors.warning }}>
+              {fieldSummary.warning}
+            </p>
+          )}
+          <div style={{ display: 'flex', gap: '24px', flexWrap: 'wrap' }}>
+            {Object.entries(fieldSummary.synced).map(([module, count]) =>
+              counter(MODULE_LABELS[module] ?? module, count),
+            )}
+          </div>
+          <span style={{ fontSize: '12px', color: colors.muted }}>
+            Each Zoho field has a Twenty field of the same label (names start
+            with "zoho"). Fields read-only in Zoho only come into Twenty.
+          </span>
+          {fieldSummary.skipped.length > 0 && (
+            <div
+              style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}
+            >
+              <span style={{ fontSize: '12px', fontWeight: 500 }}>
+                Not synced
+              </span>
+              {fieldSummary.skipped.slice(0, 20).map((entry) => (
+                <span
+                  key={`${entry.module}-${entry.field}`}
+                  style={{ fontSize: '12px', color: colors.muted }}
+                >
+                  {entry.module}, {entry.field}: {entry.reason}
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {status.recentErrors.length > 0 && (
         <div style={card}>

@@ -9,6 +9,7 @@ import {
   TwentyApiError,
   TwentyGateway,
 } from 'src/twenty/gateway';
+import { TwentyMetadataGateway } from 'src/twenty/metadata';
 
 // Wiring for code running inside Twenty: the application key-value store, and
 // the GraphQL API with the application's own access (the sync works the same
@@ -22,14 +23,14 @@ export const appKeyValueStore: KeyValueStore = {
   delete: (key) => kv.delete(key),
 };
 
-export const applicationGraphql = (): GraphqlRequest => {
+export const applicationGraphql = (path = '/graphql'): GraphqlRequest => {
   const client = new RestApiClient({ runAs: 'application' });
 
   return async (query, variables) => {
     let body: any;
 
     try {
-      body = await client.post('/graphql', { query, variables });
+      body = await client.post(path, { query, variables });
     } catch (error) {
       if (
         error instanceof RestApiClientError &&
@@ -56,6 +57,9 @@ export const applicationGraphql = (): GraphqlRequest => {
 
 export const applicationTwentyGateway = (): TwentyGateway =>
   new TwentyGateway(applicationGraphql());
+
+export const applicationTwentyMetadata = (): TwentyMetadataGateway =>
+  new TwentyMetadataGateway(applicationGraphql('/metadata'));
 
 export const enqueueSyncRun = async (
   payload: Record<string, unknown>,

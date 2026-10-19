@@ -27,11 +27,21 @@ export type PushCursor = {
 
 export type BackfillCursor = { after: string | null; done: boolean };
 
+// Deals and opportunities came with version 0.2: states saved before have
+// none, and the engine starts them fresh.
 export type SyncState = {
   version: 1;
-  pull: { accounts: PullCursor; contacts: PullCursor };
-  push: { companies: PushCursor | null; people: PushCursor | null };
-  backfill: { companies: BackfillCursor; people: BackfillCursor } | null;
+  pull: { accounts: PullCursor; contacts: PullCursor; deals?: PullCursor };
+  push: {
+    companies: PushCursor | null;
+    people: PushCursor | null;
+    opportunities?: PushCursor | null;
+  };
+  backfill: {
+    companies: BackfillCursor;
+    people: BackfillCursor;
+    opportunities?: BackfillCursor;
+  } | null;
 };
 
 export type RunCounts = {
@@ -45,6 +55,11 @@ export type RunCounts = {
   zohoAccountsUpdated: number;
   zohoContactsCreated: number;
   zohoContactsUpdated: number;
+  opportunitiesCreated: number;
+  opportunitiesUpdated: number;
+  zohoDealsCreated: number;
+  zohoDealsUpdated: number;
+  fieldsCreated: number;
   conflicts: number;
   errors: number;
 };
@@ -52,7 +67,7 @@ export type RunCounts = {
 export type SyncErrorEntry = {
   at: string;
   direction: 'pull' | 'push' | 'run';
-  object: 'company' | 'person' | 'run';
+  object: 'company' | 'person' | 'opportunity' | 'run';
   label: string;
   twentyId: string | null;
   zohoId: string | null;
@@ -71,6 +86,12 @@ export type SyncStatus = {
   moreWorkPending: boolean;
   backfillRunning: boolean;
   zohoOrganization: string | null;
+  // Zoho fields mirrored in Twenty, and those that could not be.
+  fieldSummary: {
+    synced: Record<string, number>;
+    skipped: { module: string; field: string; reason: string }[];
+    warning: string | null;
+  } | null;
   recentErrors: SyncErrorEntry[];
 };
 
@@ -94,15 +115,21 @@ export const emptyCounts = (): RunCounts => ({
   zohoAccountsUpdated: 0,
   zohoContactsCreated: 0,
   zohoContactsUpdated: 0,
+  opportunitiesCreated: 0,
+  opportunitiesUpdated: 0,
+  zohoDealsCreated: 0,
+  zohoDealsUpdated: 0,
+  fieldsCreated: 0,
   conflicts: 0,
   errors: 0,
 });
 
+// Totals saved by an older version lack the newer counters.
 export const addCounts = (a: RunCounts, b: RunCounts): RunCounts =>
   Object.fromEntries(
-    Object.keys(a).map((key) => [
+    Object.keys(emptyCounts()).map((key) => [
       key,
-      a[key as keyof RunCounts] + b[key as keyof RunCounts],
+      (a[key as keyof RunCounts] ?? 0) + (b[key as keyof RunCounts] ?? 0),
     ]),
   ) as RunCounts;
 
@@ -112,10 +139,16 @@ const freshPullCursor = (): PullCursor => ({
   caughtUp: false,
 });
 
+export const freshPull = freshPullCursor;
+
 export const initialState = (): SyncState => ({
   version: 1,
-  pull: { accounts: freshPullCursor(), contacts: freshPullCursor() },
-  push: { companies: null, people: null },
+  pull: {
+    accounts: freshPullCursor(),
+    contacts: freshPullCursor(),
+    deals: freshPullCursor(),
+  },
+  push: { companies: null, people: null, opportunities: null },
   backfill: null,
 });
 
@@ -131,6 +164,7 @@ export const initialStatus = (): SyncStatus => ({
   moreWorkPending: false,
   backfillRunning: false,
   zohoOrganization: null,
+  fieldSummary: null,
   recentErrors: [],
 });
 
@@ -161,7 +195,21 @@ export const updateStatus = async (
 
 export const resetPull = (state: SyncState): SyncState => ({
   ...state,
-  pull: { accounts: freshPullCursor(), contacts: freshPullCursor() },
+  pull: {
+    accounts: freshPullCursor(),
+    contacts: freshPullCursor(),
+    deals: freshPullCursor(),
+  },
+});
+
+// Reads every record of one module again: used when new fields appear, to
+// fill them on records already linked.
+export const rereadModule = (
+  state: SyncState,
+  key: 'accounts' | 'contacts' | 'deals',
+): SyncState => ({
+  ...state,
+  pull: { ...state.pull, [key]: freshPullCursor() },
 });
 
 export const startBackfill = (state: SyncState): SyncState => ({
@@ -169,6 +217,7 @@ export const startBackfill = (state: SyncState): SyncState => ({
   backfill: {
     companies: { after: null, done: false },
     people: { after: null, done: false },
+    opportunities: { after: null, done: false },
   },
 });
 

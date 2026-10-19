@@ -1,4 +1,9 @@
-import type { TwentyCompany, TwentyPerson } from 'src/sync/mapping';
+import type { SyncedField } from 'src/sync/fields/values';
+import type {
+  TwentyCompany,
+  TwentyOpportunity,
+  TwentyPerson,
+} from 'src/sync/mapping';
 
 // Reads and writes Twenty people and companies through the GraphQL API. Kept
 // to plain queries so the app does not depend on the generated client.
@@ -38,6 +43,7 @@ export const PERSON_FIELDS = `
   company { id zohoAccountId }
   zohoContactId
   zohoSyncHash
+  zohoFieldState
   zohoSyncedAt
   createdBy { source }
   updatedAt
@@ -52,11 +58,70 @@ export const COMPANY_FIELDS = `
   accountOwnerId
   zohoAccountId
   zohoSyncHash
+  zohoFieldState
   zohoSyncedAt
   createdBy { source }
   updatedAt
   deletedAt
 `;
+
+export const OPPORTUNITY_FIELDS = `
+  id
+  name
+  amount { amountMicros currencyCode }
+  closeDate
+  stage
+  companyId
+  company { id zohoAccountId }
+  pointOfContactId
+  pointOfContact { id zohoContactId }
+  ownerId
+  zohoDealId
+  zohoFieldState
+  zohoSyncedAt
+  createdBy { source }
+  updatedAt
+  deletedAt
+`;
+
+export type Collection = 'people' | 'companies' | 'opportunities';
+
+const FILTER_TYPE: Record<Collection, string> = {
+  people: 'PersonFilterInput',
+  companies: 'CompanyFilterInput',
+  opportunities: 'OpportunityFilterInput',
+};
+
+const BASE_FIELDS: Record<Collection, string> = {
+  people: PERSON_FIELDS,
+  companies: COMPANY_FIELDS,
+  opportunities: OPPORTUNITY_FIELDS,
+};
+
+const LINK_FIELD: Record<Collection, string> = {
+  people: 'zohoContactId',
+  companies: 'zohoAccountId',
+  opportunities: 'zohoDealId',
+};
+
+// The selection for the Zoho fields mirrored in Twenty, beyond the base ones.
+export const selectionFor = (fields: SyncedField[], base: string): string => {
+  const present = new Set(base.split(/[\s{}]+/).filter(Boolean));
+
+  return fields
+    .filter((field) => !present.has(field.twentyField))
+    .map((field) => {
+      switch (field.kind) {
+        case 'currency':
+          return `${field.twentyField} { amountMicros currencyCode }`;
+        case 'link':
+          return `${field.twentyField} { primaryLinkUrl primaryLinkLabel }`;
+        default:
+          return field.twentyField;
+      }
+    })
+    .join('\n');
+};
 
 // Twenty refuses more than this many records in one mutation by default.
 export const MUTATION_BATCH_SIZE = 50;
@@ -92,14 +157,31 @@ const nodes = <T>(connection: any): T[] =>
 
 export class TwentyGateway {
   private industryValues: string[] | null | undefined;
+  private extraSelection: Record<Collection, string> = {
+    people: '',
+    companies: '',
+    opportunities: '',
+  };
 
   constructor(private readonly request: GraphqlRequest) {}
 
+  // Adds the mirrored Zoho fields to every read of the collection.
+  useFields(collection: Collection, fields: SyncedField[]): void {
+    this.extraSelection[collection] = selectionFor(
+      fields,
+      BASE_FIELDS[collection],
+    );
+  }
+
+  private fieldsOf(collection: Collection): string {
+    return `${BASE_FIELDS[collection]}\n${this.extraSelection[collection]}`;
+  }
+
   private async findAll<T>(
-    collection: 'people' | 'companies',
-    fields: string,
+    collection: Collection,
     filters: Record<string, unknown>[],
   ): Promise<T[]> {
+    const fields = this.fieldsOf(collection);
     const records: T[] = [];
 
     for (const filter of filters) {
@@ -107,7 +189,7 @@ export class TwentyGateway {
 
       do {
         const data = await this.request(
-          `query Find($filter: ${collection === 'people' ? 'PersonFilterInput' : 'CompanyFilterInput'}, $after: String) {
+          `query Find($filter: ${FILTER_TYPE[collection]}, $after: String) {
             ${collection}(filter: $filter, first: ${PAGE_SIZE}, after: $after) {
               edges { node { ${fields} } }
               pageInfo { hasNextPage endCursor }
@@ -130,7 +212,6 @@ export class TwentyGateway {
   findPeopleByZohoIds(zohoIds: string[]): Promise<TwentyPerson[]> {
     return this.findAll<TwentyPerson>(
       'people',
-      PERSON_FIELDS,
       chunk(zohoIds, FILTER_BATCH_SIZE).map((ids) => ({
         and: [{ zohoContactId: { in: ids } }, INCLUDING_DELETED],
       })),
@@ -140,7 +221,6 @@ export class TwentyGateway {
   findPeopleByEmails(emails: string[]): Promise<TwentyPerson[]> {
     return this.findAll<TwentyPerson>(
       'people',
-      PERSON_FIELDS,
       chunk(emails, FILTER_BATCH_SIZE).map((batch) => ({
         emails: { primaryEmail: { in: batch } },
       })),
@@ -150,7 +230,6 @@ export class TwentyGateway {
   findPeopleByCompanyIds(companyIds: string[]): Promise<TwentyPerson[]> {
     return this.findAll<TwentyPerson>(
       'people',
-      PERSON_FIELDS,
       chunk(companyIds, FILTER_BATCH_SIZE).map((ids) => ({
         companyId: { in: ids },
       })),
@@ -160,7 +239,6 @@ export class TwentyGateway {
   findPeopleByIds(ids: string[]): Promise<TwentyPerson[]> {
     return this.findAll<TwentyPerson>(
       'people',
-      PERSON_FIELDS,
       chunk(ids, FILTER_BATCH_SIZE).map((batch) => ({
         id: { in: batch },
       })),
@@ -170,7 +248,6 @@ export class TwentyGateway {
   findCompaniesByZohoIds(zohoIds: string[]): Promise<TwentyCompany[]> {
     return this.findAll<TwentyCompany>(
       'companies',
-      COMPANY_FIELDS,
       chunk(zohoIds, FILTER_BATCH_SIZE).map((ids) => ({
         and: [{ zohoAccountId: { in: ids } }, INCLUDING_DELETED],
       })),
@@ -180,9 +257,17 @@ export class TwentyGateway {
   findCompaniesByIds(ids: string[]): Promise<TwentyCompany[]> {
     return this.findAll<TwentyCompany>(
       'companies',
-      COMPANY_FIELDS,
       chunk(ids, FILTER_BATCH_SIZE).map((batch) => ({
         id: { in: batch },
+      })),
+    );
+  }
+
+  findOpportunitiesByZohoIds(zohoIds: string[]): Promise<TwentyOpportunity[]> {
+    return this.findAll<TwentyOpportunity>(
+      'opportunities',
+      chunk(zohoIds, FILTER_BATCH_SIZE).map((ids) => ({
+        and: [{ zohoDealId: { in: ids } }, INCLUDING_DELETED],
       })),
     );
   }
@@ -190,7 +275,7 @@ export class TwentyGateway {
   // Every company that is not linked to Zoho yet, to match new Zoho accounts
   // by website or name.
   listUnlinkedCompanies(): Promise<TwentyCompany[]> {
-    return this.findAll<TwentyCompany>('companies', COMPANY_FIELDS, [
+    return this.findAll<TwentyCompany>('companies', [
       UNLINKED('zohoAccountId'),
     ]);
   }
@@ -246,14 +331,14 @@ export class TwentyGateway {
   }
 
   async pageUpdatedSince<T>(
-    collection: 'people' | 'companies',
+    collection: Collection,
     since: string,
     after: string | null,
     first = 100,
   ): Promise<Page<T>> {
-    const fields = collection === 'people' ? PERSON_FIELDS : COMPANY_FIELDS;
+    const fields = this.fieldsOf(collection);
     const data = await this.request(
-      `query Updated($filter: ${collection === 'people' ? 'PersonFilterInput' : 'CompanyFilterInput'}, $after: String) {
+      `query Updated($filter: ${FILTER_TYPE[collection]}, $after: String) {
         ${collection}(
           filter: $filter
           orderBy: [{ updatedAt: AscNullsFirst }, { id: AscNullsFirst }]
@@ -276,24 +361,19 @@ export class TwentyGateway {
   }
 
   async pageUnlinked<T>(
-    collection: 'people' | 'companies',
+    collection: Collection,
     after: string | null,
     first = 100,
   ): Promise<Page<T>> {
-    const fields = collection === 'people' ? PERSON_FIELDS : COMPANY_FIELDS;
+    const fields = this.fieldsOf(collection);
     const data = await this.request(
-      `query Unlinked($filter: ${collection === 'people' ? 'PersonFilterInput' : 'CompanyFilterInput'}, $after: String) {
+      `query Unlinked($filter: ${FILTER_TYPE[collection]}, $after: String) {
         ${collection}(filter: $filter, orderBy: [{ id: AscNullsFirst }], first: ${first}, after: $after) {
           edges { node { ${fields} } }
           pageInfo { hasNextPage endCursor }
         }
       }`,
-      {
-        filter: UNLINKED(
-          collection === 'people' ? 'zohoContactId' : 'zohoAccountId',
-        ),
-        after,
-      },
+      { filter: UNLINKED(LINK_FIELD[collection]), after },
     );
     const connection = data[collection];
 
@@ -308,7 +388,7 @@ export class TwentyGateway {
     return this.write<TwentyPerson>(
       'createPeople',
       'PersonCreateInput',
-      PERSON_FIELDS,
+      this.fieldsOf('people'),
       data,
       false,
     );
@@ -319,7 +399,7 @@ export class TwentyGateway {
     return this.write<TwentyPerson>(
       'createPeople',
       'PersonCreateInput',
-      PERSON_FIELDS,
+      this.fieldsOf('people'),
       data,
       true,
     );
@@ -331,7 +411,7 @@ export class TwentyGateway {
     return this.write<TwentyCompany>(
       'createCompanies',
       'CompanyCreateInput',
-      COMPANY_FIELDS,
+      this.fieldsOf('companies'),
       data,
       false,
     );
@@ -343,7 +423,31 @@ export class TwentyGateway {
     return this.write<TwentyCompany>(
       'createCompanies',
       'CompanyCreateInput',
-      COMPANY_FIELDS,
+      this.fieldsOf('companies'),
+      data,
+      true,
+    );
+  }
+
+  async createOpportunities(
+    data: Record<string, unknown>[],
+  ): Promise<TwentyOpportunity[]> {
+    return this.write<TwentyOpportunity>(
+      'createOpportunities',
+      'OpportunityCreateInput',
+      this.fieldsOf('opportunities'),
+      data,
+      false,
+    );
+  }
+
+  async updateOpportunities(
+    data: Record<string, unknown>[],
+  ): Promise<TwentyOpportunity[]> {
+    return this.write<TwentyOpportunity>(
+      'createOpportunities',
+      'OpportunityCreateInput',
+      this.fieldsOf('opportunities'),
       data,
       true,
     );

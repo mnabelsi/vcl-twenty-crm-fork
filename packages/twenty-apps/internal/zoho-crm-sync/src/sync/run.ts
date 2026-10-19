@@ -1,5 +1,6 @@
 import { readSyncConfig } from 'src/sync/config';
 import { SyncEngine, type TwentyApi, type ZohoApi } from 'src/sync/engine';
+import { loadSchema, type SyncSchema } from 'src/sync/fields/schema';
 import {
   acquireLock,
   addCounts,
@@ -15,6 +16,7 @@ import {
   updateStatus,
 } from 'src/sync/state';
 import { sealedTokenCache } from 'src/sync/token-cache';
+import type { TwentyMetadataApi } from 'src/twenty/metadata';
 import { ZohoAuthError, ZohoClient } from 'src/zoho/client';
 
 export type SyncMode = 'incremental' | 'full-pull' | 'push-unlinked';
@@ -43,6 +45,7 @@ const RATE_LIMITED_MESSAGE =
 type RunOptions = {
   store: KeyValueStore;
   twenty: TwentyApi;
+  metadata?: TwentyMetadataApi | null;
   // Built from the configuration; replaceable in tests.
   createZoho?: (
     config: NonNullable<ReturnType<typeof readSyncConfig>['config']>,
@@ -58,20 +61,35 @@ const NOTHING_DONE = 'Everything was already in step.';
 
 const summary = (counts: SyncStatus['totals']): string => {
   const parts = [
-    [counts.companiesCreated + counts.peopleCreated, 'created in Twenty'],
-    [counts.companiesUpdated + counts.peopleUpdated, 'updated in Twenty'],
+    [
+      counts.companiesCreated +
+        counts.peopleCreated +
+        counts.opportunitiesCreated,
+      'created in Twenty',
+    ],
+    [
+      counts.companiesUpdated +
+        counts.peopleUpdated +
+        counts.opportunitiesUpdated,
+      'updated in Twenty',
+    ],
     [
       counts.companiesLinked + counts.peopleLinked,
       'matched to existing Twenty records',
     ],
     [
-      counts.zohoAccountsCreated + counts.zohoContactsCreated,
+      counts.zohoAccountsCreated +
+        counts.zohoContactsCreated +
+        counts.zohoDealsCreated,
       'created in Zoho',
     ],
     [
-      counts.zohoAccountsUpdated + counts.zohoContactsUpdated,
+      counts.zohoAccountsUpdated +
+        counts.zohoContactsUpdated +
+        counts.zohoDealsUpdated,
       'updated in Zoho',
     ],
+    [counts.fieldsCreated, 'Twenty fields added for Zoho fields'],
     [counts.conflicts, 'edited on both sides (latest edit kept)'],
     [counts.errors, 'could not be synced'],
   ].filter(([count]) => (count as number) > 0);
@@ -92,9 +110,33 @@ export const requestMode = async (
   }
 };
 
+const fieldSummaryOf = (
+  schema: SyncSchema | null,
+  warning: string | null,
+): SyncStatus['fieldSummary'] =>
+  schema
+    ? {
+        synced: Object.fromEntries(
+          Object.entries(schema.modules).map(([module, entry]) => [
+            module,
+            entry?.fields.length ?? 0,
+          ]),
+        ),
+        skipped: schema.skipped.map((entry) => ({
+          module: entry.module,
+          field: entry.label || entry.zohoField,
+          reason: entry.reason,
+        })),
+        warning,
+      }
+    : warning
+      ? { synced: {}, skipped: [], warning }
+      : null;
+
 export const runSync = async ({
   store,
   twenty,
+  metadata,
   createZoho,
   budgetMs,
   lockTtlMs,
@@ -184,10 +226,17 @@ export const runSync = async ({
           sealedTokenCache(store, config.clientSecret, config.refreshToken),
         );
 
+    // A new connection may carry new scopes: read the field list again.
+    const schema = await loadSchema(store);
+    const refreshFields =
+      requested === 'full-pull' ||
+      (connectedAt !== null && connectedAt > (schema?.refreshedAt ?? 0));
+
     const engine = new SyncEngine(
       {
         zoho,
         twenty,
+        metadata: metadata ?? null,
         store,
         config,
         now,
@@ -201,6 +250,7 @@ export const runSync = async ({
     try {
       result = await engine.run({
         startBackfill: requested === 'push-unlinked',
+        refreshFields,
       });
     } catch (error) {
       if (requested) {
@@ -265,15 +315,19 @@ export const runSync = async ({
 
     const outcome = result.counts.errors > 0 ? 'partial' : 'ok';
     const done = summary(result.counts);
-    const message = result.rateLimited
-      ? `${done === NOTHING_DONE ? '' : `${done} `}${RATE_LIMITED_MESSAGE}`
-      : `${done}${
-          result.moreWorkPending
-            ? result.initialImportDone
-              ? ' More changes are waiting and will follow shortly.'
-              : ' The first import from Zoho continues in the next run.'
-            : ''
-        }`;
+    const message = `${
+      result.rateLimited
+        ? `${done === NOTHING_DONE ? '' : `${done} `}${RATE_LIMITED_MESSAGE}`
+        : `${done}${
+            result.moreWorkPending
+              ? result.initialImportDone
+                ? ' More changes are waiting and will follow shortly.'
+                : currentStatus.initialImportDone
+                  ? ' Zoho records are being read again to fill in all their fields.'
+                  : ' The first import from Zoho continues in the next run.'
+              : ''
+          }`
+    }${result.warning ? ` ${result.warning}` : ''}`;
     const status = await updateStatus(store, (current) => ({
       ...current,
       running: false,
@@ -286,6 +340,7 @@ export const runSync = async ({
       moreWorkPending: result.moreWorkPending,
       backfillRunning: result.backfillRunning,
       zohoOrganization: organization ?? current.zohoOrganization,
+      fieldSummary: fieldSummaryOf(result.schema, result.warning),
       // A run that got through clears the errors of failed runs before it.
       recentErrors: [
         ...[...result.errors].reverse(),
@@ -299,8 +354,9 @@ export const runSync = async ({
       // The first import and a backfill can be large: keep going right away
       // instead of waiting for the schedule.
       continueSoon:
-        result.moreWorkPending &&
-        (!result.initialImportDone || result.backfillRunning),
+        result.followUpSoon ||
+        (result.moreWorkPending &&
+          (!result.initialImportDone || result.backfillRunning)),
       ...(result.rateLimited ? { retryAfterMs: RATE_LIMIT_RETRY_MS } : {}),
       status,
     };

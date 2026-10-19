@@ -1,8 +1,22 @@
+import { randomUUID } from 'crypto';
+
 import type { TwentyApi, ZohoApi } from 'src/sync/engine';
-import type { TwentyCompany, TwentyPerson } from 'src/sync/mapping';
+import type {
+  FieldToCreate,
+  TwentyFieldMetadata,
+  TwentyObjectName,
+  TwentyOption,
+  ZohoFieldMetadata,
+} from 'src/sync/fields/schema-plan';
+import type {
+  TwentyCompany,
+  TwentyOpportunity,
+  TwentyPerson,
+} from 'src/sync/mapping';
 import type { KeyValueStore } from 'src/sync/state';
 import { MUTATION_BATCH_SIZE, TwentyApiError } from 'src/twenty/gateway';
-import type { ZohoWriteResult } from 'src/zoho/client';
+import type { TwentyMetadataApi } from 'src/twenty/metadata';
+import { ZohoError, type ZohoWriteResult } from 'src/zoho/client';
 
 // In-memory stand-ins for Zoho and Twenty, close enough to the real APIs for
 // the sync rules: timestamps move on every write, filters behave the same.
@@ -44,14 +58,25 @@ type ZohoRecord = Record<string, any> & { id: string; Modified_Time: string };
 const zohoTime = (ms: number) =>
   `${new Date(ms).toISOString().slice(0, 19)}+00:00`;
 
+type ZohoModuleName = 'Accounts' | 'Contacts' | 'Deals';
+
 export class FakeZoho implements ZohoApi {
   modules: Record<string, Map<string, ZohoRecord>> = {
     Accounts: new Map(),
     Contacts: new Map(),
+    Deals: new Map(),
   };
+  fields: Record<string, ZohoFieldMetadata[]> = {
+    Accounts: [],
+    Contacts: [],
+    Deals: [],
+  };
+  currency: string | null = 'AED';
+  // Modules the connection has no scope for; "settings" for the field lists.
+  missingScopes = new Set<string>();
   writes: {
     module: string;
-    kind: 'update' | 'upsert';
+    kind: 'update' | 'upsert' | 'insert';
     records: Record<string, unknown>[];
   }[] = [];
   private nextId = 1000;
@@ -59,7 +84,7 @@ export class FakeZoho implements ZohoApi {
   constructor(private readonly clock: Clock) {}
 
   add(
-    module: 'Accounts' | 'Contacts',
+    module: ZohoModuleName,
     record: Record<string, any>,
   ): ZohoRecord {
     const id = record.id ?? String(this.nextId++);
@@ -75,7 +100,7 @@ export class FakeZoho implements ZohoApi {
   }
 
   edit(
-    module: 'Accounts' | 'Contacts',
+    module: ZohoModuleName,
     id: string,
     changes: Record<string, any>,
   ) {
@@ -86,11 +111,33 @@ export class FakeZoho implements ZohoApi {
     });
   }
 
+  private checkScope(module: string) {
+    if (this.missingScopes.has(module)) {
+      throw new ZohoError(
+        'the connection lacks the scope it needs',
+        401,
+        'OAUTH_SCOPE_MISMATCH',
+      );
+    }
+  }
+
+  async listFields(module: string): Promise<ZohoFieldMetadata[]> {
+    this.checkScope('settings');
+    this.checkScope(module);
+
+    return structuredClone(this.fields[module] ?? []);
+  }
+
+  async organizationCurrency(): Promise<string | null> {
+    return this.currency;
+  }
+
   async listModified<T>(
     module: string,
     _fields: string[],
     { since, page }: { since: string | null; page: number },
   ): Promise<{ records: T[]; moreRecords: boolean }> {
+    this.checkScope(module);
     const sinceMs = since ? Date.parse(since) : -Infinity;
     const all = [...this.modules[module].values()]
       .filter((record) => Date.parse(record.Modified_Time) >= sinceMs)
@@ -147,6 +194,39 @@ export class FakeZoho implements ZohoApi {
         action: 'update',
         code: 'SUCCESS',
         message: 'record updated',
+      };
+    });
+  }
+
+  async insert(
+    module: string,
+    records: Record<string, unknown>[],
+  ): Promise<ZohoWriteResult[]> {
+    this.writes.push({
+      module,
+      kind: 'insert',
+      records: structuredClone(records),
+    });
+
+    return records.map((record) => {
+      if (module === 'Deals' && (!record.Deal_Name || !record.Stage)) {
+        return {
+          ok: false,
+          id: null,
+          action: null,
+          code: 'MANDATORY_NOT_FOUND',
+          message: 'required field not found',
+        };
+      }
+
+      const created = this.add(module as ZohoModuleName, record);
+
+      return {
+        ok: true,
+        id: created.id,
+        action: 'insert',
+        code: 'SUCCESS',
+        message: 'record added',
       };
     });
   }
@@ -225,11 +305,17 @@ export const rateLimitError = () =>
   );
 
 type WriteKind =
-  'createPeople' | 'updatePeople' | 'createCompanies' | 'updateCompanies';
+  | 'createPeople'
+  | 'updatePeople'
+  | 'createCompanies'
+  | 'updateCompanies'
+  | 'createOpportunities'
+  | 'updateOpportunities';
 
 export class FakeTwenty implements TwentyApi {
   people = new Map<string, Stored<TwentyPerson>>();
   companies = new Map<string, Stored<TwentyCompany>>();
+  opportunities = new Map<string, Stored<TwentyOpportunity>>();
   members: { id: string; userEmail: string }[] = [];
   industries: string[] | null = null;
   rejectPhone: (data: Record<string, unknown>) => boolean = () => false;
@@ -310,6 +396,41 @@ export class FakeTwenty implements TwentyApi {
     return person;
   }
 
+  addOpportunity(
+    data: Partial<TwentyOpportunity> & Record<string, unknown>,
+  ): Stored<TwentyOpportunity> {
+    const opportunity = {
+      id: uuid(),
+      name: '',
+      amount: { amountMicros: null, currencyCode: 'USD' },
+      closeDate: null,
+      stage: 'NEW',
+      companyId: null,
+      pointOfContactId: null,
+      ownerId: null,
+      zohoDealId: '',
+      zohoFieldState: '',
+      zohoSyncedAt: null,
+      createdBy: { source: 'MANUAL' },
+      ...data,
+      updatedAt: new Date(this.clock.tick()).toISOString(),
+      deletedAt: null,
+    } as Stored<TwentyOpportunity>;
+
+    this.opportunities.set(opportunity.id, opportunity);
+
+    return opportunity;
+  }
+
+  editOpportunity(id: string, data: Record<string, unknown>) {
+    const opportunity = this.opportunities.get(id)!;
+
+    merge(opportunity, data);
+    opportunity.updatedAt = new Date(this.clock.tick()).toISOString();
+  }
+
+  useFields() {}
+
   editPerson(id: string, data: Record<string, unknown>) {
     const person = this.people.get(id)!;
 
@@ -333,6 +454,27 @@ export class FakeTwenty implements TwentyApi {
       ...person,
       company: company
         ? { id: company.id, zohoAccountId: company.zohoAccountId }
+        : null,
+    });
+  }
+
+  private withRelations(
+    opportunity: Stored<TwentyOpportunity>,
+  ): TwentyOpportunity {
+    const company = opportunity.companyId
+      ? this.companies.get(opportunity.companyId)
+      : undefined;
+    const person = opportunity.pointOfContactId
+      ? this.people.get(opportunity.pointOfContactId)
+      : undefined;
+
+    return structuredClone({
+      ...opportunity,
+      company: company
+        ? { id: company.id, zohoAccountId: company.zohoAccountId }
+        : null,
+      pointOfContact: person
+        ? { id: person.id, zohoContactId: person.zohoContactId }
         : null,
     });
   }
@@ -361,6 +503,21 @@ export class FakeTwenty implements TwentyApi {
     return this.live(this.people.values())
       .filter((person) => person.companyId && ids.includes(person.companyId))
       .map((person) => this.withCompany(person));
+  }
+
+  async findPeopleByIds(ids: string[]) {
+    return this.live(this.people.values())
+      .filter((person) => ids.includes(person.id))
+      .map((person) => this.withCompany(person));
+  }
+
+  async findOpportunitiesByZohoIds(ids: string[]) {
+    return [...this.opportunities.values()]
+      .filter(
+        (opportunity) =>
+          opportunity.zohoDealId && ids.includes(opportunity.zohoDealId),
+      )
+      .map((opportunity) => this.withRelations(opportunity));
   }
 
   async findCompaniesByZohoIds(ids: string[]) {
@@ -392,15 +549,34 @@ export class FakeTwenty implements TwentyApi {
     return this.industries;
   }
 
+  private collectionValues(
+    collection: 'people' | 'companies' | 'opportunities',
+  ): Iterable<any> {
+    return collection === 'people'
+      ? this.people.values()
+      : collection === 'companies'
+        ? this.companies.values()
+        : this.opportunities.values();
+  }
+
+  private present(
+    collection: 'people' | 'companies' | 'opportunities',
+    record: any,
+  ) {
+    return collection === 'people'
+      ? this.withCompany(record)
+      : collection === 'opportunities'
+        ? this.withRelations(record)
+        : structuredClone(record);
+  }
+
   async pageUpdatedSince<T>(
-    collection: 'people' | 'companies',
+    collection: 'people' | 'companies' | 'opportunities',
     since: string,
     after: string | null,
     first = 100,
   ) {
-    const records = this.live<any>(
-      collection === 'people' ? this.people.values() : this.companies.values(),
-    )
+    const records = this.live<any>(this.collectionValues(collection))
       .filter((record) => Date.parse(record.updatedAt) > Date.parse(since))
       .sort(
         (a, b) =>
@@ -416,36 +592,31 @@ export class FakeTwenty implements TwentyApi {
     const last = page[page.length - 1];
 
     return {
-      records: page.map((record) =>
-        collection === 'people'
-          ? this.withCompany(record)
-          : structuredClone(record),
-      ) as T[],
+      records: page.map((record) => this.present(collection, record)) as T[],
       endCursor: last ? `${last.updatedAt}|${last.id}` : null,
       hasNextPage: records.length > start + first,
     };
   }
 
   async pageUnlinked<T>(
-    collection: 'people' | 'companies',
+    collection: 'people' | 'companies' | 'opportunities',
     after: string | null,
     first = 100,
   ) {
-    const field = collection === 'people' ? 'zohoContactId' : 'zohoAccountId';
-    const records = this.live<any>(
-      collection === 'people' ? this.people.values() : this.companies.values(),
-    )
+    const field =
+      collection === 'people'
+        ? 'zohoContactId'
+        : collection === 'companies'
+          ? 'zohoAccountId'
+          : 'zohoDealId';
+    const records = this.live<any>(this.collectionValues(collection))
       .filter((record) => !record[field])
       .sort((a, b) => a.id.localeCompare(b.id))
       .filter((record) => !after || record.id > after);
     const page = records.slice(0, first);
 
     return {
-      records: page.map((record) =>
-        collection === 'people'
-          ? this.withCompany(record)
-          : structuredClone(record),
-      ) as T[],
+      records: page.map((record) => this.present(collection, record)) as T[],
       endCursor: page[page.length - 1]?.id ?? null,
       hasNextPage: records.length > first,
     };
@@ -540,6 +711,35 @@ export class FakeTwenty implements TwentyApi {
     });
   }
 
+  private writeOpportunities(
+    kind: WriteKind,
+    data: Record<string, unknown>[],
+    upsert: boolean,
+  ) {
+    return this.inBatches(kind, data, (batch) => {
+      const updatedAt = new Date(this.clock.tick()).toISOString();
+
+      return batch.map((entry) => {
+        const opportunity = upsert
+          ? this.opportunities.get(entry.id as string)!
+          : this.addOpportunity({ createdBy: { source: 'APPLICATION' } });
+
+        merge(opportunity, entry);
+        opportunity.updatedAt = updatedAt;
+
+        return this.withRelations(opportunity);
+      });
+    });
+  }
+
+  createOpportunities(data: Record<string, unknown>[]) {
+    return this.writeOpportunities('createOpportunities', data, false);
+  }
+
+  updateOpportunities(data: Record<string, unknown>[]) {
+    return this.writeOpportunities('updateOpportunities', data, true);
+  }
+
   createPeople(data: Record<string, unknown>[]) {
     return this.writePeople('createPeople', data, false);
   }
@@ -554,5 +754,116 @@ export class FakeTwenty implements TwentyApi {
 
   updateCompanies(data: Record<string, unknown>[]) {
     return this.writeCompanies('updateCompanies', data, true);
+  }
+}
+
+// Twenty's data model, as the metadata API shows and changes it.
+export class FakeMetadata implements TwentyMetadataApi {
+  objects: Record<TwentyObjectName, { id: string; fields: TwentyFieldMetadata[] }> =
+    {
+      person: {
+        id: 'object-person',
+        fields: [
+          { id: randomUUID(), name: 'name', label: 'Name', type: 'FULL_NAME' },
+          { id: randomUUID(), name: 'jobTitle', label: 'Job Title', type: 'TEXT' },
+        ],
+      },
+      company: {
+        id: 'object-company',
+        fields: [
+          { id: randomUUID(), name: 'name', label: 'Name', type: 'TEXT' },
+          {
+            id: randomUUID(),
+            name: 'annualRevenue',
+            label: 'Annual Revenue',
+            type: 'CURRENCY',
+          },
+          {
+            id: randomUUID(),
+            name: 'industry',
+            label: 'Industry',
+            type: 'SELECT',
+            options: [],
+          },
+        ],
+      },
+      opportunity: {
+        id: 'object-opportunity',
+        fields: [
+          { id: randomUUID(), name: 'name', label: 'Name', type: 'TEXT' },
+          { id: randomUUID(), name: 'amount', label: 'Amount', type: 'CURRENCY' },
+          {
+            id: randomUUID(),
+            name: 'closeDate',
+            label: 'Close date',
+            type: 'DATE_TIME',
+          },
+          {
+            id: randomUUID(),
+            name: 'stage',
+            label: 'Stage',
+            type: 'SELECT',
+            options: [
+              {
+                id: randomUUID(),
+                value: 'NEW',
+                label: 'New',
+                color: 'red',
+                position: 0,
+              },
+            ],
+          },
+        ],
+      },
+    };
+  created: FieldToCreate[] = [];
+  refuseCreate: (field: FieldToCreate) => Error | null = () => null;
+
+  async listObjects(names: TwentyObjectName[]) {
+    return structuredClone(
+      Object.fromEntries(
+        names.map((name) => [name, this.objects[name]]),
+      ) as Partial<
+        Record<TwentyObjectName, { id: string; fields: TwentyFieldMetadata[] }>
+      >,
+    );
+  }
+
+  async createField(objectMetadataId: string, field: FieldToCreate) {
+    const refusal = this.refuseCreate(field);
+
+    if (refusal) {
+      throw refusal;
+    }
+
+    const object = Object.values(this.objects).find(
+      (candidate) => candidate.id === objectMetadataId,
+    )!;
+    const created: TwentyFieldMetadata = {
+      id: randomUUID(),
+      name: field.name,
+      label: field.label,
+      type: field.type,
+      options: field.options ?? null,
+    };
+
+    object.fields.push(created);
+    this.created.push(structuredClone(field));
+
+    return created;
+  }
+
+  async updateFieldOptions(fieldId: string, options: TwentyOption[]) {
+    for (const object of Object.values(this.objects)) {
+      const field = object.fields.find((candidate) => candidate.id === fieldId);
+
+      if (field) {
+        field.options = structuredClone(options);
+      }
+    }
+  }
+
+  field(object: TwentyObjectName, name: string) {
+    return this.objects[object].fields.find((field) => field.name === name);
   }
 }

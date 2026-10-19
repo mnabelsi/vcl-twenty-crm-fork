@@ -5,6 +5,7 @@ import { runSync } from 'src/sync/run';
 import {
   appKeyValueStore,
   applicationTwentyGateway,
+  applicationTwentyMetadata,
   enqueueSyncRun,
 } from 'src/sync/runtime';
 
@@ -21,6 +22,7 @@ const handler = async (payload: SyncPayload) => {
   const result = await runSync({
     store: appKeyValueStore,
     twenty: applicationTwentyGateway(),
+    metadata: applicationTwentyMetadata(),
     budgetMs: WORK_BUDGET_MS,
     lockTtlMs: (TIMEOUT_SECONDS + 60) * 1000,
   });
@@ -40,7 +42,7 @@ export default defineLogicFunction({
   universalIdentifier: SYNC_LOGIC_FUNCTION_UNIVERSAL_IDENTIFIER,
   name: 'zoho-sync',
   description:
-    'Brings Zoho CRM Contacts and Accounts in step with Twenty People and Companies, both ways',
+    'Brings Zoho CRM Contacts, Accounts and Deals, with every field, in step with Twenty People, Companies and Opportunities, both ways',
   timeoutSeconds: TIMEOUT_SECONDS,
   handler,
   cronTriggerSettings: {

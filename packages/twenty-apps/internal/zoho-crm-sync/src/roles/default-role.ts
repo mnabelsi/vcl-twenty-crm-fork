@@ -9,15 +9,16 @@ import {
   DEFAULT_ROLE_UNIVERSAL_IDENTIFIER,
 } from 'src/constants/universal-identifiers';
 
-// The sync reads and writes people and companies, reads workspace members to
-// match Zoho account owners, and saves the refresh token it obtains from a
-// grant code into its own application variable (the APPLICATIONS flag).
-// It never deletes anything.
+// The sync reads and writes people, companies and opportunities, reads
+// workspace members to match Zoho owners, saves the refresh token it obtains
+// from a grant code into its own application variable (APPLICATIONS), and
+// creates a Twenty field for each Zoho field (DATA_MODEL). It never deletes
+// anything.
 export default defineApplicationRole({
   universalIdentifier: DEFAULT_ROLE_UNIVERSAL_IDENTIFIER,
   label: `${APP_DISPLAY_NAME} role`,
   description:
-    'Reads and updates people and companies to keep them in step with Zoho CRM',
+    'Reads and updates people, companies and opportunities, and adds fields, to keep them in step with Zoho CRM',
   canReadAllObjectRecords: false,
   canUpdateAllObjectRecords: false,
   canSoftDeleteAllObjectRecords: false,
@@ -41,6 +42,14 @@ export default defineApplicationRole({
     },
     {
       objectUniversalIdentifier:
+        STANDARD_OBJECT_UNIVERSAL_IDENTIFIERS.opportunity.universalIdentifier,
+      canReadObjectRecords: true,
+      canUpdateObjectRecords: true,
+      canSoftDeleteObjectRecords: false,
+      canDestroyObjectRecords: false,
+    },
+    {
+      objectUniversalIdentifier:
         STANDARD_OBJECT_UNIVERSAL_IDENTIFIERS.workspaceMember
           .universalIdentifier,
       canReadObjectRecords: true,
@@ -49,5 +58,8 @@ export default defineApplicationRole({
       canDestroyObjectRecords: false,
     },
   ],
-  permissionFlagUniversalIdentifiers: [SystemPermissionFlag.APPLICATIONS],
+  permissionFlagUniversalIdentifiers: [
+    SystemPermissionFlag.APPLICATIONS,
+    SystemPermissionFlag.DATA_MODEL,
+  ],
 });

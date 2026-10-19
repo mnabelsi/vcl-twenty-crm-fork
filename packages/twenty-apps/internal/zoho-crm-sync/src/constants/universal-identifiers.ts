@@ -1,6 +1,6 @@
 export const APP_DISPLAY_NAME = 'Zoho CRM Sync';
 export const APP_DESCRIPTION =
-  'Two-way sync of Zoho CRM Contacts and Accounts with Twenty People and Companies';
+  'Two-way sync of Zoho CRM Contacts, Accounts and Deals, with every field, with Twenty People, Companies and Opportunities';
 export const APPLICATION_UNIVERSAL_IDENTIFIER =
   '0a46df05-53f4-4e8a-85d4-f0658de8ec9b';
 export const DEFAULT_ROLE_UNIVERSAL_IDENTIFIER =
@@ -44,6 +44,9 @@ export const PERSON_ZOHO_SYNCED_AT_FIELD_UNIVERSAL_IDENTIFIER =
 export const PERSON_ZOHO_SYNC_HASH_FIELD_UNIVERSAL_IDENTIFIER =
   '4a338f0f-4f18-49ad-9d09-aafea176d7e7';
 
+export const PERSON_ZOHO_FIELD_STATE_FIELD_UNIVERSAL_IDENTIFIER =
+  '91fb71e4-bd41-48b3-8e03-b502eb9b0ece';
+
 // Fields added to the standard Company object
 export const COMPANY_ZOHO_ACCOUNT_ID_FIELD_UNIVERSAL_IDENTIFIER =
   'da118e7b-cb6f-4618-9bff-41245e146b57';
@@ -51,6 +54,17 @@ export const COMPANY_ZOHO_SYNCED_AT_FIELD_UNIVERSAL_IDENTIFIER =
   'ae34f8b2-8098-473a-9d8a-9376576729c4';
 export const COMPANY_ZOHO_SYNC_HASH_FIELD_UNIVERSAL_IDENTIFIER =
   '21a45fea-f491-4269-81d0-e7212621b8a1';
+
+export const COMPANY_ZOHO_FIELD_STATE_FIELD_UNIVERSAL_IDENTIFIER =
+  '269b4fa9-66a5-42d1-b37c-93796e1bdcf6';
+
+// Fields added to the standard Opportunity object
+export const OPPORTUNITY_ZOHO_DEAL_ID_FIELD_UNIVERSAL_IDENTIFIER =
+  '1fc46c27-4139-4a29-b3b1-e017f77bc466';
+export const OPPORTUNITY_ZOHO_SYNCED_AT_FIELD_UNIVERSAL_IDENTIFIER =
+  '12ffdb84-6dab-4e87-85b1-6d08a8e85831';
+export const OPPORTUNITY_ZOHO_FIELD_STATE_FIELD_UNIVERSAL_IDENTIFIER =
+  'aa992ba2-ed13-41e8-b709-d0c78421d6e2';
 
 // Logic functions
 export const SYNC_LOGIC_FUNCTION_UNIVERSAL_IDENTIFIER =

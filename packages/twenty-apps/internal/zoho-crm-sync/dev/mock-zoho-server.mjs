@@ -3,7 +3,56 @@ import http from 'node:http';
 
 const PORT = Number(process.env.PORT ?? 4555);
 const BASE = process.env.BASE ?? `http://172.17.0.1:${PORT}`;
-const modules = { Accounts: new Map(), Contacts: new Map() };
+const modules = {
+  Accounts: new Map(),
+  Contacts: new Map(),
+  Deals: new Map(),
+};
+
+// Field lists for GET /settings/fields, with a few custom fields.
+const picklist = (...values) =>
+  values.map((value) => ({ display_value: value, actual_value: value }));
+const FIELDS = {
+  Accounts: [
+    { api_name: 'Account_Name', data_type: 'text', field_label: 'Account Name' },
+    { api_name: 'Website', data_type: 'website', field_label: 'Website' },
+    { api_name: 'Billing_City', data_type: 'text', field_label: 'Billing City' },
+    { api_name: 'Industry', data_type: 'picklist', field_label: 'Industry',
+      pick_list_values: picklist('-None-', 'Banking', 'Telecom', 'Pharma') },
+    { api_name: 'Employees', data_type: 'integer', field_label: 'Employees' },
+    { api_name: 'Annual_Revenue', data_type: 'currency', field_label: 'Annual Revenue' },
+    { api_name: 'Owner', data_type: 'ownerlookup', field_label: 'Account Owner' },
+    { api_name: 'Account_Tier', data_type: 'picklist', field_label: 'Account Tier',
+      pick_list_values: picklist('Gold', 'Silver') },
+  ],
+  Contacts: [
+    { api_name: 'First_Name', data_type: 'text', field_label: 'First Name' },
+    { api_name: 'Last_Name', data_type: 'text', field_label: 'Last Name' },
+    { api_name: 'Email', data_type: 'email', field_label: 'Email' },
+    { api_name: 'Lead_Source', data_type: 'picklist', field_label: 'Lead Source',
+      pick_list_values: picklist('-None-', 'Trade Show', 'Referral') },
+    { api_name: 'Department', data_type: 'text', field_label: 'Department' },
+    { api_name: 'Date_of_Birth', data_type: 'date', field_label: 'Date of Birth' },
+    { api_name: 'Email_Opt_Out', data_type: 'boolean', field_label: 'Email Opt Out' },
+    { api_name: 'Created_Time', data_type: 'datetime', field_label: 'Created Time', read_only: true },
+    { api_name: 'Owner', data_type: 'ownerlookup', field_label: 'Contact Owner' },
+    { api_name: 'Interests', data_type: 'multiselectpicklist', field_label: 'Interests',
+      pick_list_values: picklist('AI', 'Leadership', 'HR Tech') },
+    { api_name: 'Record_Image', data_type: 'profileimage', field_label: 'Contact Image' },
+  ],
+  Deals: [
+    { api_name: 'Deal_Name', data_type: 'text', field_label: 'Deal Name' },
+    { api_name: 'Amount', data_type: 'currency', field_label: 'Amount' },
+    { api_name: 'Closing_Date', data_type: 'date', field_label: 'Closing Date' },
+    { api_name: 'Stage', data_type: 'picklist', field_label: 'Stage',
+      pick_list_values: picklist('Qualification', 'Proposal/Price Quote', 'Closed Won', 'Closed Lost') },
+    { api_name: 'Account_Name', data_type: 'lookup', field_label: 'Account Name' },
+    { api_name: 'Contact_Name', data_type: 'lookup', field_label: 'Contact Name' },
+    { api_name: 'Probability', data_type: 'integer', field_label: 'Probability (%)' },
+    { api_name: 'Next_Step', data_type: 'text', field_label: 'Next Step' },
+    { api_name: 'Owner', data_type: 'ownerlookup', field_label: 'Deal Owner' },
+  ],
+};
 const log = [];
 let tokenCount = 0;
 let nextId = 5000000000000;
@@ -94,6 +143,16 @@ for (let index = 0; index < 230; index++) {
   });
 }
 
+// A deal on the first account (fictitious).
+add('Deals', {
+  Deal_Name: 'Acme Telecom leadership programme',
+  Amount: 180000,
+  Closing_Date: '2026-12-15',
+  Stage: 'Proposal/Price Quote',
+  Probability: 60,
+  Account_Name: { id: acmetel.id, name: acmetel.Account_Name },
+});
+
 const send = (res, status, body) => {
   if (status === 204 || body === undefined) {
     res.writeHead(status);
@@ -165,6 +224,7 @@ const server = http.createServer(async (req, res) => {
         tokenCount,
         Accounts: [...modules.Accounts.values()],
         Contacts: [...modules.Contacts.values()],
+        Deals: [...modules.Deals.values()],
       });
     if (url.pathname === '/_log')
       return send(
@@ -181,7 +241,9 @@ const server = http.createServer(async (req, res) => {
       return send(res, 200, add(module, record));
     }
 
-    const match = url.pathname.match(/^\/crm\/v8\/(\w+)(\/upsert)?$/);
+    const match = url.pathname.match(
+      /^\/crm\/v8\/(\w+)(\/upsert|\/fields)?$/,
+    );
     if (!match)
       return send(res, 404, {
         code: 'INVALID_URL_PATTERN',
@@ -200,8 +262,20 @@ const server = http.createServer(async (req, res) => {
 
     if (module === 'org')
       return send(res, 200, {
-        org: [{ company_name: 'Example Org (mock)', id: '1' }],
+        org: [{ company_name: 'Example Org (mock)', id: '1', iso_code: 'AED' }],
       });
+
+    if (module === 'settings' && upsert === '/fields') {
+      const fields = FIELDS[url.searchParams.get('module')];
+
+      return fields
+        ? send(res, 200, { fields })
+        : send(res, 400, {
+            code: 'INVALID_MODULE',
+            message: 'the module name given seems to be invalid',
+            status: 'error',
+          });
+    }
 
     const store = modules[module];
     if (!store)
@@ -212,6 +286,12 @@ const server = http.createServer(async (req, res) => {
       });
 
     if (req.method === 'GET') {
+      if ((url.searchParams.get('fields') ?? '').split(',').length > 50)
+        return send(res, 400, {
+          code: 'LIMIT_EXCEEDED',
+          message: 'fields: maximum 50',
+          status: 'error',
+        });
       const ids = url.searchParams.get('ids');
       if (ids) {
         const data = ids
@@ -324,6 +404,23 @@ const server = http.createServer(async (req, res) => {
         return {
           code: 'SUCCESS',
           duplicate_field: null,
+          action: 'insert',
+          details: { id: created.id },
+          message: 'record added',
+          status: 'success',
+        };
+      }
+      if (req.method === 'POST') {
+        if (module === 'Deals' && (!record.Deal_Name || !record.Stage))
+          return {
+            code: 'MANDATORY_NOT_FOUND',
+            details: { api_name: record.Deal_Name ? 'Stage' : 'Deal_Name' },
+            message: 'required field not found',
+            status: 'error',
+          };
+        const created = add(module, record);
+        return {
+          code: 'SUCCESS',
           action: 'insert',
           details: { id: created.id },
           message: 'record added',

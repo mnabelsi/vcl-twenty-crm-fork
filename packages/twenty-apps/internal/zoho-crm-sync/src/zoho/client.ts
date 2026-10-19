@@ -55,6 +55,19 @@ export class ZohoAuthError extends ZohoError {
 const TOKEN_SAFETY_MARGIN_MS = 5 * 60 * 1000;
 const RETRY_DELAYS_MS = [1000, 4000, 10000];
 const MAX_IDS_PER_GET = 100;
+// Zoho reads at most 50 fields per request; the id comes with every record.
+const MAX_FIELDS_PER_GET = 50;
+
+const fieldChunks = (fields: string[]): string[][] => {
+  const unique = [...new Set(fields.filter((field) => field !== 'id'))];
+  const chunks: string[][] = [];
+
+  for (let index = 0; index < unique.length; index += MAX_FIELDS_PER_GET) {
+    chunks.push(unique.slice(index, index + MAX_FIELDS_PER_GET));
+  }
+
+  return chunks.length > 0 ? chunks : [[]];
+};
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -280,6 +293,16 @@ export class ZohoClient {
       const message =
         json?.message ?? json?.data?.[0]?.message ?? text.slice(0, 300);
 
+      // A token without the scope a module needs (Deals, field settings) is
+      // not broken: the rest of the sync keeps working with it.
+      if (response.status === 401 && /SCOPE/i.test(String(code))) {
+        throw new ZohoError(
+          `Zoho refused ${path}: the connection lacks the scope it needs (${code})`,
+          response.status,
+          String(code),
+        );
+      }
+
       if (response.status === 401) {
         throw new ZohoAuthError(
           `Zoho refused the access token: ${message}`,
@@ -296,15 +319,17 @@ export class ZohoClient {
   }
 
   // Records changed at or after `since` (all records when it is null), oldest
-  // change first, one page of up to 200.
+  // change first, one page of up to 200. Fields beyond the first 50 are read
+  // by id and merged in.
   async listModified<T>(
     module: string,
     fields: string[],
     { since, page }: { since: string | null; page: number },
   ): Promise<{ records: T[]; moreRecords: boolean }> {
+    const [first, ...rest] = fieldChunks(fields);
     const { json } = await this.request('GET', `/${module}`, {
       query: {
-        fields: fields.join(','),
+        fields: first.join(','),
         per_page: 200,
         page,
         sort_by: 'Modified_Time',
@@ -312,9 +337,18 @@ export class ZohoClient {
       },
       headers: since ? { 'If-Modified-Since': since } : undefined,
     });
+    const records = (json?.data ?? []) as (T & { id: string })[];
+
+    if (rest.length > 0 && records.length > 0) {
+      await this.mergeFields(
+        module,
+        records,
+        rest.flat(),
+      );
+    }
 
     return {
-      records: (json?.data ?? []) as T[],
+      records,
       moreRecords: Boolean(json?.info?.more_records),
     };
   }
@@ -324,20 +358,79 @@ export class ZohoClient {
     ids: string[],
     fields: string[],
   ): Promise<T[]> {
-    const records: T[] = [];
+    const [first, ...rest] = fieldChunks(fields);
+    const records: (T & { id: string })[] = [];
 
     for (let index = 0; index < ids.length; index += MAX_IDS_PER_GET) {
       const { json } = await this.request('GET', `/${module}`, {
         query: {
           ids: ids.slice(index, index + MAX_IDS_PER_GET).join(','),
-          fields: fields.join(','),
+          fields: first.join(','),
         },
       });
 
-      records.push(...((json?.data ?? []) as T[]));
+      records.push(...((json?.data ?? []) as (T & { id: string })[]));
+    }
+
+    if (rest.length > 0 && records.length > 0) {
+      await this.mergeFields(module, records, rest.flat());
     }
 
     return records;
+  }
+
+  private async mergeFields(
+    module: string,
+    records: { id: string }[],
+    fields: string[],
+  ): Promise<void> {
+    const byId = new Map(records.map((record) => [record.id, record]));
+    const ids = [...byId.keys()];
+
+    for (const chunk of fieldChunks(fields)) {
+      for (let index = 0; index < ids.length; index += MAX_IDS_PER_GET) {
+        const { json } = await this.request('GET', `/${module}`, {
+          query: {
+            ids: ids.slice(index, index + MAX_IDS_PER_GET).join(','),
+            fields: chunk.join(','),
+          },
+        });
+
+        for (const extra of (json?.data ?? []) as Record<string, unknown>[]) {
+          const record = byId.get(String(extra.id));
+
+          if (record) {
+            Object.assign(record, extra);
+          }
+        }
+      }
+    }
+  }
+
+  // The field list of a module, custom fields included.
+  async listFields(module: string): Promise<any[]> {
+    const { json } = await this.request('GET', '/settings/fields', {
+      query: { module },
+    });
+
+    return json?.fields ?? [];
+  }
+
+  // The organization's home currency, for amounts Zoho sends without one.
+  async organizationCurrency(): Promise<string | null> {
+    try {
+      const { json } = await this.request('GET', '/org');
+      const org = json?.org?.[0];
+      const code = org?.iso_code ?? org?.currency?.iso_code ?? null;
+
+      return typeof code === 'string' && /^[A-Z]{3}$/.test(code) ? code : null;
+    } catch (error) {
+      if (error instanceof ZohoAuthError) {
+        throw error;
+      }
+
+      return null;
+    }
   }
 
   // Up to 100 records per call. Each entry carries the Zoho id to update.
@@ -364,6 +457,19 @@ export class ZohoClient {
         data: records,
         duplicate_check_fields: duplicateCheckFields,
       },
+    });
+
+    return readWriteResults(json, records.length);
+  }
+
+  // Up to 100 records per call, always created (Deals have no field to tell
+  // two deals apart).
+  async insert(
+    module: string,
+    records: Record<string, unknown>[],
+  ): Promise<ZohoWriteResult[]> {
+    const { json } = await this.request('POST', `/${module}`, {
+      body: { data: records },
     });
 
     return readWriteResults(json, records.length);

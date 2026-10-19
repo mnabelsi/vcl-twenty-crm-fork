@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.2.0
+
+- Every Zoho field is synced. The app reads the field list of Contacts, Accounts and Deals (custom fields included) every six hours and creates a Twenty field for each one, named `zoho…` with the Zoho label. Fields added in Zoho later are created too.
+- Editable fields sync both ways, field by field: an edit to one field in Zoho and another in Twenty are both kept. Read-only Zoho fields (formulas, lookups, owners, system times) come into Twenty only. File, image and subform fields are not synced and are listed on the page.
+- Zoho Annual Revenue goes into Twenty's own Annual Revenue field.
+- Deals sync with Twenty Opportunities, both ways: name, amount, closing date, stage (Zoho's stages are added to the Stage field), company, point of contact, owner (Zoho to Twenty) and every other Deal field.
+- When the field list gets new fields, all Zoho records are read again to fill them on records already in Twenty.
+- Needs a new connection with the Deals and field settings scopes. Until then Contacts and Accounts keep syncing their main fields, and the page asks to reconnect.
+- The app role can now change the data model (to add the fields) and read and update opportunities.
+
 ## 0.1.3
 
 - A Zoho contact without an account no longer removes the company a person was given in Twenty (by hand or by email domain).

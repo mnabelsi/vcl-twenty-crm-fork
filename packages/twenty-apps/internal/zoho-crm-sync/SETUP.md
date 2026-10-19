@@ -20,7 +20,7 @@ npx twenty app apply --create             # build, register and install the app
 
 ## Fake Zoho
 
-`dev/mock-zoho-server.mjs` answers the Zoho accounts server and the CRM v8 endpoints the app uses, with a few fictitious accounts and contacts. The Twenty container reaches the host at `172.17.0.1` on Linux (`host.docker.internal` on macOS and Windows):
+`dev/mock-zoho-server.mjs` answers the Zoho accounts server and the CRM v8 endpoints the app uses (records, upsert, field lists, org), with a few fictitious accounts, contacts and a deal, and a few custom fields. The Twenty container reaches the host at `172.17.0.1` on Linux (`host.docker.internal` on macOS and Windows):
 
 ```bash
 BASE=http://172.17.0.1:4555 node dev/mock-zoho-server.mjs

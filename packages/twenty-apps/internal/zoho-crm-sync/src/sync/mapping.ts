@@ -32,6 +32,8 @@ export type ZohoContact = {
   Mailing_Country?: string | null;
   Account_Name?: ZohoLookup | null;
   Modified_Time?: string | null;
+  // The mirrored fields, read by name.
+  [field: string]: unknown;
 };
 
 export type ZohoAccount = {
@@ -46,6 +48,17 @@ export type ZohoAccount = {
   Industry?: string | null;
   Owner?: ZohoLookup | null;
   Modified_Time?: string | null;
+  [field: string]: unknown;
+};
+
+export type ZohoDeal = {
+  id: string;
+  Account_Name?: ZohoLookup | null;
+  Contact_Name?: ZohoLookup | null;
+  Owner?: ZohoLookup | null;
+  Currency?: string | null;
+  Modified_Time?: string | null;
+  [field: string]: unknown;
 };
 
 export const ZOHO_CONTACT_FIELDS = [
@@ -58,6 +71,15 @@ export const ZOHO_CONTACT_FIELDS = [
   'Title',
   'Mailing_Country',
   'Account_Name',
+  'Modified_Time',
+];
+
+// Deal_Name, Amount, Closing_Date and Stage come through the field map.
+export const ZOHO_DEAL_FIELDS = [
+  'Account_Name',
+  'Contact_Name',
+  'Owner',
+  'Currency',
   'Modified_Time',
 ];
 
@@ -98,6 +120,7 @@ export type TwentyPerson = {
   company?: { id: string; zohoAccountId?: string | null } | null;
   zohoContactId?: string | null;
   zohoSyncHash?: string | null;
+  zohoFieldState?: string | null;
   zohoSyncedAt?: string | null;
   createdBy?: { source?: string | null } | null;
   updatedAt?: string | null;
@@ -124,6 +147,26 @@ export type TwentyCompany = {
   industry?: string | null;
   zohoAccountId?: string | null;
   zohoSyncHash?: string | null;
+  zohoFieldState?: string | null;
+  zohoSyncedAt?: string | null;
+  createdBy?: { source?: string | null } | null;
+  updatedAt?: string | null;
+  deletedAt?: string | null;
+};
+
+export type TwentyOpportunity = {
+  id: string;
+  name?: string | null;
+  amount?: { amountMicros?: number | string | null; currencyCode?: string | null } | null;
+  closeDate?: string | null;
+  stage?: string | null;
+  companyId?: string | null;
+  company?: { id: string; zohoAccountId?: string | null } | null;
+  pointOfContactId?: string | null;
+  pointOfContact?: { id: string; zohoContactId?: string | null } | null;
+  ownerId?: string | null;
+  zohoDealId?: string | null;
+  zohoFieldState?: string | null;
   zohoSyncedAt?: string | null;
   createdBy?: { source?: string | null } | null;
   updatedAt?: string | null;
