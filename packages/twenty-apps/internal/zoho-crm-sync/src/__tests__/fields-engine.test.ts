@@ -6,6 +6,7 @@ import {
   FakeTwenty,
   FakeZoho,
   memoryStore,
+  rateLimitError,
 } from 'src/__tests__/fakes';
 import type { SyncDirection } from 'src/sync/config';
 import { SyncEngine } from 'src/sync/engine';
@@ -505,5 +506,125 @@ describe('deals', () => {
     expect(people()).toHaveLength(1);
     expect(result.warning).toMatch(/Reconnect Zoho/);
     expect((await loadSchema(store))?.modules.Deals).toBeUndefined();
+  });
+});
+
+describe('safety on the live workspace', () => {
+  it('keeps the annual revenue Twenty already has', async () => {
+    zoho.add('Accounts', {
+      Account_Name: 'Cedar Bank',
+      Annual_Revenue: 1_000_000,
+    });
+    twenty.addCompany({
+      name: 'Cedar Bank',
+      annualRevenue: { amountMicros: 5_000_000_000_000, currencyCode: 'USD' },
+    } as never);
+
+    await runUntilSettled();
+
+    const company = [...twenty.companies.values()][0] as Record<string, any>;
+    const account = [...zoho.modules.Accounts.values()][0];
+
+    expect(company.annualRevenue).toEqual({
+      amountMicros: 5_000_000_000_000,
+      currencyCode: 'USD',
+    });
+    expect(account.Annual_Revenue).toBe(5_000_000);
+  });
+
+  it('keeps Zoho URL fields as text, so any value fits', async () => {
+    zoho.fields.Contacts.push({
+      api_name: 'LinkedIn_Profile',
+      data_type: 'website',
+      field_label: 'LinkedIn Profile',
+    });
+    zoho.add('Contacts', { Last_Name: 'Hayek', LinkedIn_Profile: 'n/a' });
+
+    await runUntilSettled();
+
+    expect(metadata.field('person', 'zohoLinkedInProfile')?.type).toBe('TEXT');
+    expect(people()[0].zohoLinkedInProfile).toBe('n/a');
+  });
+
+  it('does not rewrite an opportunity on every run when its company cannot reach Zoho', async () => {
+    await runUntilSettled();
+
+    // Zoho refuses an account without a name.
+    const company = twenty.addCompany({ name: '' });
+    const opportunity = twenty.addOpportunity({ name: 'Orphan deal' });
+
+    twenty.editOpportunity(opportunity.id, {
+      companyId: company.id,
+      stage: 'QUALIFICATION',
+    });
+    await runUntilSettled();
+
+    const updatedAt = twenty.opportunities.get(opportunity.id)?.updatedAt;
+
+    await runOnce();
+    await runOnce();
+
+    expect(twenty.opportunities.get(opportunity.id)?.updatedAt).toBe(
+      updatedAt,
+    );
+  });
+
+  it('does not insert a deal twice when saving its link failed', async () => {
+    await runUntilSettled();
+
+    const opportunity = twenty.addOpportunity({ name: 'Telecom AI pilot' });
+
+    twenty.editOpportunity(opportunity.id, { stage: 'QUALIFICATION' });
+
+    let refusals = 1;
+
+    twenty.refuseWrite = (kind, batch) =>
+      kind === 'updateOpportunities' &&
+      batch.some((entry) => entry.zohoDealId) &&
+      refusals-- > 0
+        ? rateLimitError()
+        : null;
+
+    await runUntilSettled();
+
+    const deals = [...zoho.modules.Deals.values()].filter(
+      (deal) => deal.Deal_Name === 'Telecom AI pilot',
+    );
+
+    expect(deals).toHaveLength(1);
+    expect(twenty.opportunities.get(opportunity.id)?.zohoDealId).toBe(
+      deals[0].id,
+    );
+  });
+
+  it('keeps running when the Deals scope is lost after Deals worked', async () => {
+    zoho.add('Deals', { Deal_Name: 'Existing deal', Stage: 'Qualification' });
+    await runUntilSettled();
+
+    zoho.missingScopes = new Set(['Deals']);
+    twenty.editOpportunity(opportunities()[0].id, { stage: 'CLOSED_WON' });
+    zoho.add('Contacts', { Last_Name: 'Added later' });
+
+    const result = await runUntilSettled({ refreshFields: true });
+
+    expect(people().map((person) => person.name.lastName)).toContain(
+      'Added later',
+    );
+    expect(result.warning).toMatch(/Reconnect Zoho/);
+  });
+
+  it("does not send Twenty's own stages to Zoho", async () => {
+    const deal = zoho.add('Deals', {
+      Deal_Name: 'Stage test',
+      Stage: 'Qualification',
+    });
+
+    await runUntilSettled();
+    twenty.editOpportunity(opportunities()[0].id, { stage: 'NEW' });
+    zoho.writes = [];
+    await runUntilSettled();
+
+    expect(zoho.modules.Deals.get(deal.id)?.Stage).toBe('Qualification');
+    expect(zoho.writes).toEqual([]);
   });
 });

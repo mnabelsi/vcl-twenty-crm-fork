@@ -27,7 +27,7 @@ A Twenty app that keeps **Zoho CRM Contacts, Accounts and Deals** in step with *
 | Account_Name | Name |
 | Website | Domain |
 | Billing_Street, Billing_City, Billing_State, Billing_Code, Billing_Country | Address |
-| Annual_Revenue | Annual Revenue |
+| Annual_Revenue (Twenty's value is kept the first time if both have one) | Annual Revenue |
 | Owner (Zoho to Twenty, matched by email to a workspace member) | Account owner, when empty |
 | Industry (Zoho to Twenty, when it matches an option of the Industry field) | Industry, on new companies |
 
@@ -36,7 +36,7 @@ A Twenty app that keeps **Zoho CRM Contacts, Accounts and Deals** in step with *
 | Deal_Name | Name |
 | Amount (in the deal's currency, or the Zoho organization's) | Amount |
 | Closing_Date | Close date |
-| Stage (Zoho's stages are added as options) | Stage |
+| Stage (Zoho's stages are added as options; Twenty's own stages, like New, are not sent) | Stage |
 | Account_Name | Company |
 | Contact_Name | Point of Contact |
 | Owner (Zoho to Twenty, matched by email to a workspace member) | Owner, when empty |
@@ -47,8 +47,7 @@ The app reads the field list of each Zoho module (custom fields included) every 
 
 | Zoho type | Twenty type | Direction |
 | --- | --- | --- |
-| Single line, multi line, email, phone | Text | Both ways |
-| URL | Links | Both ways |
+| Single line, multi line, email, phone, URL | Text | Both ways |
 | Pick list | Select (options added as Zoho values appear) | Both ways |
 | Multi-select pick list | Multi-select | Both ways |
 | Integer, decimal, percent, long integer | Number | Both ways |

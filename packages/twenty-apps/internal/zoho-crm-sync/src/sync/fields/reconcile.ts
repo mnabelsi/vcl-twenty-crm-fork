@@ -1,5 +1,6 @@
 import {
   type CanonicalValue,
+  canSendToZoho,
   stateKeyOf,
   type SyncedField,
   valueFromTwenty,
@@ -120,7 +121,10 @@ export const reconcileFields = ({
     const storedHash = stored?.[stateKey];
 
     if (storedHash === undefined) {
-      if (zohoValue === null) {
+      if (
+        zohoValue === null ||
+        (field.twentyLeadsFirst === true && twentyValue !== null)
+      ) {
         toZoho[key] = twentyValue;
       } else {
         toTwenty[key] = zohoValue;
@@ -257,6 +261,8 @@ export const twentyDataFor = (
   return data;
 };
 
+// Values Zoho cannot take are dropped from `values` too, so they are not
+// recorded as synced and Twenty's value stays as it is.
 export const zohoDataFor = (
   fields: SyncedField[],
   values: Record<string, CanonicalValue>,
@@ -264,13 +270,27 @@ export const zohoDataFor = (
   const data: Record<string, unknown> = {};
 
   for (const field of fields) {
-    if (field.zohoField in values) {
-      data[field.zohoField] = valueToZoho(field, values[field.zohoField]);
+    if (!(field.zohoField in values)) {
+      continue;
     }
+    if (!canSendToZoho(field, values[field.zohoField])) {
+      delete values[field.zohoField];
+      continue;
+    }
+    data[field.zohoField] = valueToZoho(field, values[field.zohoField]);
   }
 
   return data;
 };
+
+// Whether a write-back after a push changes anything in Twenty.
+export const pushChangesTwenty = (
+  fields: SyncedField[],
+  stored: FieldState | null,
+  reconciliation: Reconciliation,
+): boolean =>
+  Object.keys(reconciliation.toTwenty).length > 0 ||
+  !sameFieldState(stateAfterPush(fields, stored, reconciliation), stored);
 
 export const sameFieldState = (
   a: FieldState | null,

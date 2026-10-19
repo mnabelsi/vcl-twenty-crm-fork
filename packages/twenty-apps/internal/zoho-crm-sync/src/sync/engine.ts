@@ -3,6 +3,7 @@ import {
   type FieldState,
   type FieldValues,
   parseFieldState,
+  pushChangesTwenty,
   reconcileFields,
   reconcileForInsert,
   type Reconciliation,
@@ -256,7 +257,11 @@ const isRateLimited = (error: unknown): boolean =>
 const isScopeProblem = (error: unknown): boolean =>
   error instanceof ZohoError &&
   !(error instanceof ZohoAuthError) &&
-  /SCOPE/i.test(error.code);
+  /SCOPE|NO_PERMISSION/i.test(error.code);
+
+// Deals inserted in Zoho whose link Twenty has not saved yet, by opportunity.
+// Kept between runs so a run stopped after the insert does not insert again.
+const PENDING_DEAL_LINKS_KEY = 'zoho-sync:pending-deal-links';
 
 const zohoIdOf = (lookup: { id?: string | null } | null | undefined) =>
   cleanText(lookup?.id) || null;
@@ -487,6 +492,20 @@ export class SyncEngine {
     }
   }
 
+  // A connection that lost the Deals scope keeps everything else running.
+  private async withDealsScope(work: () => Promise<boolean>): Promise<boolean> {
+    try {
+      return await work();
+    } catch (error) {
+      if (isScopeProblem(error)) {
+        this.warning = SCOPES_MESSAGE;
+
+        return true;
+      }
+      throw error;
+    }
+  }
+
   // Deals sync once their field list could be read, which also proves the
   // connection has the Deals scope.
   private dealsEnabled(): boolean {
@@ -644,7 +663,10 @@ export class SyncEngine {
       const peopleDone = companiesDone && (await this.pushChanged('people'));
       const opportunitiesDone =
         peopleDone &&
-        (!this.dealsEnabled() || (await this.pushChanged('opportunities')));
+        (!this.dealsEnabled() ||
+          (await this.withDealsScope(() =>
+            this.pushChanged('opportunities'),
+          )));
 
       if (!companiesDone || !peopleDone || !opportunitiesDone) {
         this.moreWorkPending = true;
@@ -1615,6 +1637,16 @@ export class SyncEngine {
       deal?: ZohoDeal | null;
     };
     const toPush: Item[] = [];
+    const pendingLinks =
+      (await this.deps.store.get<Record<string, string>>(
+        PENDING_DEAL_LINKS_KEY,
+      )) ?? {};
+
+    for (const opportunity of candidates) {
+      if (!opportunity.zohoDealId && pendingLinks[opportunity.id]) {
+        opportunity.zohoDealId = pendingLinks[opportunity.id];
+      }
+    }
 
     for (const opportunity of candidates) {
       const values = this.opportunityValues(fields, opportunity);
@@ -1660,8 +1692,16 @@ export class SyncEngine {
         zohoFieldState: serializeFieldState(
           stateAfterPush(allFields, item.stored, reconciliation),
         ),
+        ...(item.opportunity.zohoDealId
+          ? { zohoDealId: item.opportunity.zohoDealId }
+          : {}),
         zohoSyncedAt: this.nowIso(),
       };
+    };
+    const linkPending = (item: Item) =>
+      Boolean(pendingLinks[item.opportunity.id]);
+    const linkSaved = (item: Item) => () => {
+      delete pendingLinks[item.opportunity.id];
     };
 
     for (const item of toPush) {
@@ -1694,15 +1734,20 @@ export class SyncEngine {
 
       const payload = this.dealPayload(fields, item.reconciliation);
 
-      if (Object.keys(payload).length === 0) {
+      if (Object.keys(payload).length > 0) {
+        updates.push({ item, payload: { id: deal.id, ...payload } });
+      } else if (
+        linkPending(item) ||
+        pushChangesTwenty(allFields, item.stored, item.reconciliation)
+      ) {
+        // Rewriting an unchanged record would bring it back on every pass.
         writeBacks.push({
           data: writeBackData(item),
           label: cleanText(item.opportunity.name) || 'Unnamed opportunity',
           zohoId: deal.id,
           twentyId: item.opportunity.id,
+          onWritten: linkSaved(item),
         });
-      } else {
-        updates.push({ item, payload: { id: deal.id, ...payload } });
       }
     }
 
@@ -1731,6 +1776,7 @@ export class SyncEngine {
 
         if (inserting) {
           this.counts.zohoDealsCreated += 1;
+          pendingLinks[item.opportunity.id] = result.id;
         } else {
           this.counts.zohoDealsUpdated += 1;
         }
@@ -1739,6 +1785,7 @@ export class SyncEngine {
           label,
           zohoId: result.id,
           twentyId: item.opportunity.id,
+          onWritten: linkSaved(item),
         });
       });
     };
@@ -1774,9 +1821,11 @@ export class SyncEngine {
         ),
         true,
       );
+      await this.deps.store.set(PENDING_DEAL_LINKS_KEY, pendingLinks);
     }
 
     await this.writeTwenty('opportunity', 'update', writeBacks, 'push');
+    await this.deps.store.set(PENDING_DEAL_LINKS_KEY, pendingLinks);
   }
 
   // Writes in batches; when a batch fails, each of its records is retried alone
@@ -2061,9 +2110,19 @@ export class SyncEngine {
             skipAutoCreated: true,
           });
         } else {
-          await this.pushOpportunities(page.records, {
-            includeUnchanged: true,
+          const refused = await this.withDealsScope(async () => {
+            await this.pushOpportunities(page.records, {
+              includeUnchanged: true,
+            });
+
+            return false;
           });
+
+          if (refused) {
+            // Refused for lack of scope: the backfill of deals ends here.
+            cursor.done = true;
+            break;
+          }
         }
 
         // Records left behind (skipped or refused) stay unlinked; the cursor
@@ -2223,8 +2282,14 @@ export class SyncEngine {
             item.zohoRecord ?? null,
           )
         : {};
-    const writeBacks: PendingWrite<TwentyCompany>[] = fingerprintOnly.map(
-      (item) => ({
+    const writeBacks: PendingWrite<TwentyCompany>[] = fingerprintOnly
+      .filter(
+        (item) =>
+          item.fingerprint !== item.company.zohoSyncHash ||
+          (item.fieldRecon !== undefined &&
+            pushChangesTwenty(fields, item.stored, item.fieldRecon)),
+      )
+      .map((item) => ({
         data: {
           id: item.company.id,
           ...fieldsWriteBack(item),
@@ -2234,8 +2299,7 @@ export class SyncEngine {
         label: cleanText(item.company.name),
         zohoId: item.company.zohoAccountId ?? null,
         twentyId: item.company.id,
-      }),
-    );
+      }));
 
     const handle = (
       batch: { item: (typeof toPush)[number] }[],
@@ -2490,17 +2554,23 @@ export class SyncEngine {
       };
 
       if (Object.keys(payload).length === 0) {
-        writeBacks.push({
-          data: {
-            id: item.person.id,
-            ...fieldsWriteBack(item),
-            zohoSyncHash: item.fingerprint,
-            zohoSyncedAt: this.nowIso(),
-          },
-          label: personLabel(item.values),
-          zohoId: zohoContact.id,
-          twentyId: item.person.id,
-        });
+        // Rewriting an unchanged record would bring it back on every pass.
+        if (
+          item.fingerprint !== item.person.zohoSyncHash ||
+          pushChangesTwenty(fields, item.stored, item.fieldRecon)
+        ) {
+          writeBacks.push({
+            data: {
+              id: item.person.id,
+              ...fieldsWriteBack(item),
+              zohoSyncHash: item.fingerprint,
+              zohoSyncedAt: this.nowIso(),
+            },
+            label: personLabel(item.values),
+            zohoId: zohoContact.id,
+            twentyId: item.person.id,
+          });
+        }
       } else {
         updates.push({
           item,

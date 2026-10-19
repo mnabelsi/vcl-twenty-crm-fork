@@ -11,6 +11,7 @@ import {
 } from 'src/sync/fields/schema-plan';
 import type { SyncedField } from 'src/sync/fields/values';
 import type { KeyValueStore } from 'src/sync/state';
+import { TwentyApiError } from 'src/twenty/gateway';
 import type { TwentyMetadataApi } from 'src/twenty/metadata';
 import { ZohoAuthError, ZohoError } from 'src/zoho/client';
 
@@ -56,6 +57,13 @@ const isScopeProblem = (error: unknown): boolean =>
   error instanceof ZohoError &&
   !(error instanceof ZohoAuthError) &&
   /SCOPE|NO_PERMISSION|OAUTH/i.test(error.code);
+
+// Twenty's request limit stops the run; it is not a refusal of the field.
+const rethrowRateLimit = (error: unknown) => {
+  if (error instanceof TwentyApiError && error.isRateLimited) {
+    throw error;
+  }
+};
 
 export type SchemaRefresh = {
   schema: SyncSchema;
@@ -108,8 +116,12 @@ export const refreshSchema = async ({
       } else {
         schema.warning = `Could not read the Zoho ${config.module} fields: ${(error as Error).message}`;
       }
-      // Keep what worked before rather than dropping the module's fields.
-      if (previous?.modules[config.module]) {
+      // Keep what worked before rather than dropping the module's fields,
+      // except Deals: without their scope every Deals call would fail.
+      if (
+        previous?.modules[config.module] &&
+        !(config.module === 'Deals' && isScopeProblem(error))
+      ) {
         schema.modules[config.module] = previous.modules[config.module];
       }
       continue;
@@ -141,6 +153,7 @@ export const refreshSchema = async ({
         }
         fieldsCreated += 1;
       } catch (error) {
+        rethrowRateLimit(error);
         failed.add(create.zohoField);
         plan.skipped.push({
           module: config.module,
@@ -154,7 +167,8 @@ export const refreshSchema = async ({
     for (const update of plan.optionUpdates) {
       try {
         await metadata.updateFieldOptions(update.fieldId, update.options);
-      } catch {
+      } catch (error) {
+        rethrowRateLimit(error);
         // Without the new options, those Zoho values stay unreadable and the
         // field is left alone on the records holding them.
         const field = plan.fields.find(
@@ -238,7 +252,8 @@ export const addMissingOptions = async ({
       }
       field.options = merged.selectOptions;
       changed = true;
-    } catch {
+    } catch (error) {
+      rethrowRateLimit(error);
       // Left unreadable; tried again on the next page that holds the value.
     }
   }

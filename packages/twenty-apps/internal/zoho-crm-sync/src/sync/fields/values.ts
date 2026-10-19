@@ -37,6 +37,9 @@ export type SyncedField = {
   options?: SelectOption[];
   // Twenty refuses an empty value (the opportunity stage).
   nonNullable?: boolean;
+  // An existing Twenty field: its value is kept when both sides hold one the
+  // first time the field syncs.
+  twentyLeadsFirst?: boolean;
   // Key of the field in a record's field state, tied to the Twenty field id:
   // a field deleted and created again starts over instead of reading as
   // emptied in Twenty.
@@ -285,6 +288,25 @@ export const valueToTwenty = (
     case 'multiselect':
       return Array.isArray(value) ? value : [];
   }
+};
+
+// A Twenty option with no Zoho value (one of Twenty's own stages, say) is
+// not sent: Zoho would refuse it or keep a value its picklist does not have.
+export const canSendToZoho = (
+  field: SyncedField,
+  value: CanonicalValue,
+): boolean => {
+  const mapped = (entry: string) =>
+    Boolean(field.options?.some((option) => option.value === entry));
+
+  if (field.kind === 'select') {
+    return typeof value !== 'string' || mapped(value);
+  }
+  if (field.kind === 'multiselect') {
+    return !Array.isArray(value) || value.every(mapped);
+  }
+
+  return true;
 };
 
 const zohoOption = (field: SyncedField, value: string): string => {

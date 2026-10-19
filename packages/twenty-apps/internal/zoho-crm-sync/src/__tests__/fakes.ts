@@ -155,6 +155,8 @@ export class FakeZoho implements ZohoApi {
   }
 
   async getByIds<T>(module: string, ids: string[]): Promise<T[]> {
+    this.checkScope(module);
+
     return ids
       .map((id) => this.modules[module].get(id))
       .filter(Boolean)

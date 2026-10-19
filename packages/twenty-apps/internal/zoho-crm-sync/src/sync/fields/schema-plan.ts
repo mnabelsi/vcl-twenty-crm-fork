@@ -88,7 +88,12 @@ export type ModuleConfig = {
   // Zoho fields kept in an existing Twenty field rather than a new one.
   existingFields: Record<
     string,
-    { twentyField: string; kind: FieldKind; nonNullable?: boolean }
+    {
+      twentyField: string;
+      kind: FieldKind;
+      nonNullable?: boolean;
+      twentyLeadsFirst?: boolean;
+    }
   >;
 };
 
@@ -106,7 +111,12 @@ export const MODULE_CONFIGS: ModuleConfig[] = [
       'Billing_Country',
     ],
     existingFields: {
-      Annual_Revenue: { twentyField: 'annualRevenue', kind: 'currency' },
+      // Companies may already have a revenue in Twenty: it is kept.
+      Annual_Revenue: {
+        twentyField: 'annualRevenue',
+        kind: 'currency',
+        twentyLeadsFirst: true,
+      },
     },
   },
   {
@@ -193,8 +203,10 @@ const kindForType = (
       return { kind: 'text', forcedFromZoho: false };
     case 'autonumber':
       return { kind: 'text', forcedFromZoho: true };
+    // Text rather than Links: Twenty refuses a record whose link is not a
+    // valid URL, and Zoho URL fields often hold "n/a" or a bare name.
     case 'website':
-      return { kind: 'link', forcedFromZoho: false };
+      return { kind: 'text', forcedFromZoho: false };
     case 'picklist':
       return { kind: 'select', forcedFromZoho: false };
     case 'multiselectpicklist':
@@ -313,7 +325,9 @@ const uniqueValue = (candidate: string, taken: Set<string>): string => {
   }
 
   for (let suffix = 2; ; suffix++) {
-    const value = `${candidate.slice(0, IDENTIFIER_MAX_LENGTH - 4)}_${suffix}`;
+    const value = `${candidate
+      .slice(0, IDENTIFIER_MAX_LENGTH - 4)
+      .replace(/_+$/, '')}_${suffix}`;
 
     if (!taken.has(value)) {
       return value;
@@ -440,6 +454,7 @@ export const planModule = ({
   const previousByZohoField = new Map(
     previous.map((field) => [field.zohoField, field]),
   );
+  const usedNames = new Map<string, string>();
 
   for (const zohoField of zohoFields) {
     const apiName = zohoField.api_name;
@@ -469,7 +484,13 @@ export const planModule = ({
     }
 
     const kind = existing?.kind ?? typed.kind;
-    const twentyName = existing?.twentyField ?? twentyFieldNameFor(apiName);
+    let twentyName = existing?.twentyField ?? twentyFieldNameFor(apiName);
+
+    // Lead_Source and lead_source would share a name: the second gets its own.
+    if (usedNames.has(twentyName) && usedNames.get(twentyName) !== apiName) {
+      twentyName = `${twentyName.slice(0, IDENTIFIER_MAX_LENGTH - 9)}X${shortHash(apiName, 8)}`;
+    }
+    usedNames.set(twentyName, apiName);
     const twentyField = twentyByName.get(twentyName);
     const expectedType = TWENTY_TYPE_BY_KIND[kind];
 
@@ -508,6 +529,7 @@ export const planModule = ({
       kind,
       direction: typed.fromZoho ? 'fromZoho' : 'both',
       ...(existing?.nonNullable ? { nonNullable: true } : {}),
+      ...(existing?.twentyLeadsFirst ? { twentyLeadsFirst: true } : {}),
       ...(twentyField ? { stateKey: stateKeyFor(apiName, twentyField.id) } : {}),
     };
     let createOptions: TwentyOption[] | undefined;
