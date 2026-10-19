@@ -1,0 +1,1 @@
+export const PEOPLE_TREE_PEOPLE_PER_GROUP = 100;

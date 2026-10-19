@@ -27,6 +27,12 @@ const WorkflowCoreShowPage = lazy(() =>
   })),
 );
 
+const PeopleTreePage = lazy(() =>
+  import('~/pages/people-tree/PeopleTreePage').then((module) => ({
+    default: module.PeopleTreePage,
+  })),
+);
+
 const RecordIndexPage = lazy(() =>
   import('~/pages/object-record/RecordIndexPage').then((module) => ({
     default: module.RecordIndexPage,
@@ -109,6 +115,14 @@ export const createWorkspaceRouteObjects = ({
       element: (
         <LazyRoute>
           <AgentCoreShowPage />
+        </LazyRoute>
+      ),
+    },
+    {
+      path: AppPath.PeopleTreePage,
+      element: (
+        <LazyRoute fallback={<RecordIndexSkeletonLoader />}>
+          <PeopleTreePage />
         </LazyRoute>
       ),
     },

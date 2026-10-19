@@ -1,0 +1,1 @@
+export const PEOPLE_TREE_AUTO_EXPAND_LIMIT = 300;

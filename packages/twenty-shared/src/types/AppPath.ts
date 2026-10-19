@@ -26,6 +26,7 @@ export enum AppPath {
   PageLayoutPage = '/page/:pageLayoutId',
   WorkflowCoreShowPage = '/workflow/:coreWorkflowId',
   AgentIndexPage = '/agents',
+  PeopleTreePage = '/people-tree',
   AgentShowPage = '/agent/:agentId',
 
   Settings = `settings`,

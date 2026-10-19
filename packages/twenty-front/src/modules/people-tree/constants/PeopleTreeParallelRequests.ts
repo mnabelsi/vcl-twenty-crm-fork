@@ -1,0 +1,1 @@
+export const PEOPLE_TREE_PARALLEL_REQUESTS = 6;
