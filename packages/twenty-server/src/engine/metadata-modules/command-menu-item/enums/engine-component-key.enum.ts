@@ -71,6 +71,7 @@ export enum EngineComponentKey {
   DUPLICATE_MESSAGE_CAMPAIGN = 'DUPLICATE_MESSAGE_CAMPAIGN',
   EMAIL_BLOCK_SETTINGS = 'EMAIL_BLOCK_SETTINGS',
   EMAIL_PAGE_STYLE = 'EMAIL_PAGE_STYLE',
+  START_EMAIL_SEQUENCE = 'START_EMAIL_SEQUENCE',
 
   // TODO: Remove deprecated keys once upgrade:1-21:refactor-navigation-commands has run on all workspaces
   // Deprecated: replaced by NAVIGATION engine key with payload

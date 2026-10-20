@@ -48,4 +48,5 @@ export enum SidePanelPages {
   ShareRecord = 'share-record',
   SnoozeAiChat = 'snooze-ai-chat',
   AssignAiChat = 'assign-ai-chat',
+  StartEmailSequence = 'start-email-sequence',
 }

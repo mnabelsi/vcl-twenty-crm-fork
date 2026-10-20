@@ -199,6 +199,7 @@ export class MessagingMessagesImportService {
               .filter(isDefined),
             messageChannel.excludeGroupEmails,
             workspace?.isInternalMessagesImportEnabled ?? false,
+            this.twentyConfigService.get('INTERNAL_EMAIL_DOMAINS'),
           );
 
           if (messagesToSave.length > 0) {

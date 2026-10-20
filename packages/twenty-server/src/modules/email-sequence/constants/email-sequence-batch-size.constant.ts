@@ -1,0 +1,1 @@
+export const EMAIL_SEQUENCE_BATCH_SIZE = 25;

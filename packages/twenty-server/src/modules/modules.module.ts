@@ -9,6 +9,7 @@ import { WorkspaceMemberQueryHookModule } from 'src/modules/workspace-member/que
 import { NoteQueryHookModule } from 'src/modules/note/query-hooks/note-query-hook.module';
 import { TaskQueryHookModule } from 'src/modules/task/query-hooks/task-query-hook.module';
 import { TimelineQueryHookModule } from 'src/modules/timeline/query-hooks/timeline-query-hook.module';
+import { EmailSequenceModule } from 'src/modules/email-sequence/email-sequence.module';
 import { EmailingModule } from 'src/modules/emailing/emailing.module';
 import { MessagingWebhooksModule } from 'src/modules/messaging-webhooks/messaging-webhooks.module';
 import { ConnectedAccountSyncWebhooksModule } from 'src/modules/connected-account-sync-webhooks/connected-account-sync-webhooks.module';
@@ -33,6 +34,7 @@ import { WorkspaceMemberModule } from 'src/modules/workspace-member/workspace-me
     WorkflowModule,
     WorkspaceMemberModule,
     EmailingModule,
+    EmailSequenceModule,
     MessagingWebhooksModule,
     ConnectedAccountSyncWebhooksModule,
     ChannelSyncModule,

@@ -1236,6 +1236,87 @@ export interface EmailPasswordResetLink {
     __typename: 'EmailPasswordResetLink'
 }
 
+export interface EmailSequenceDashboard {
+    enrollments: EmailSequenceEnrollment[]
+    stats: EmailSequenceStats
+    __typename: 'EmailSequenceDashboard'
+}
+
+export interface EmailSequenceEnrollment {
+    companyName?: Scalars['String']
+    createdAt: Scalars['DateTime']
+    email: Scalars['String']
+    endedAt?: Scalars['DateTime']
+    id: Scalars['UUID']
+    industry: Scalars['String']
+    jobTitle?: Scalars['String']
+    lastError?: Scalars['String']
+    lastSentAt?: Scalars['DateTime']
+    lastStepKey?: Scalars['String']
+    messages: EmailSequenceMessage[]
+    nextSendAt?: Scalars['DateTime']
+    nextStage?: Scalars['Int']
+    personId: Scalars['UUID']
+    personName: Scalars['String']
+    status: Scalars['String']
+    track: Scalars['String']
+    __typename: 'EmailSequenceEnrollment'
+}
+
+export interface EmailSequenceIndustryLine {
+    industry: Scalars['String']
+    line: Scalars['String']
+    __typename: 'EmailSequenceIndustryLine'
+}
+
+export interface EmailSequenceMessage {
+    firstOpenedAt?: Scalars['DateTime']
+    id: Scalars['UUID']
+    messageThreadId?: Scalars['UUID']
+    openCount: Scalars['Int']
+    sentAt: Scalars['DateTime']
+    stepKey: Scalars['String']
+    subject: Scalars['String']
+    __typename: 'EmailSequenceMessage'
+}
+
+export interface EmailSequenceSetting {
+    dailySendLimit: Scalars['Int']
+    industryLines: EmailSequenceIndustryLine[]
+    isOpenTrackingEnabled: Scalars['Boolean']
+    sendDays: Scalars['Int'][]
+    sendWindowEndHour: Scalars['Int']
+    sendWindowStartHour: Scalars['Int']
+    sendingMailbox?: Scalars['String']
+    signature: Scalars['String']
+    stepDelaysInDays: Scalars['Int'][]
+    timeZone: Scalars['String']
+    __typename: 'EmailSequenceSetting'
+}
+
+export interface EmailSequenceStats {
+    active: Scalars['Int']
+    bounced: Scalars['Int']
+    completed: Scalars['Int']
+    emailsOpened: Scalars['Int']
+    emailsSent: Scalars['Int']
+    emailsSentToday: Scalars['Int']
+    failed: Scalars['Int']
+    replied: Scalars['Int']
+    stopped: Scalars['Int']
+    __typename: 'EmailSequenceStats'
+}
+
+export interface EmailSequenceTemplate {
+    body: Scalars['String']
+    id: Scalars['UUID']
+    stepKey: Scalars['String']
+    subject?: Scalars['String']
+    track: Scalars['String']
+    updatedAt: Scalars['DateTime']
+    __typename: 'EmailSequenceTemplate'
+}
+
 export interface EmailThreadConfiguration {
     configurationType: WidgetConfigurationType
     __typename: 'EmailThreadConfiguration'
@@ -1263,7 +1344,7 @@ export interface EmailsConfiguration {
     __typename: 'EmailsConfiguration'
 }
 
-export type EngineComponentKey = 'ACTIVATE_WORKFLOW' | 'ADD_NODE_WORKFLOW' | 'ADD_TO_FAVORITES' | 'ADD_TO_MESSAGE_LIST' | 'ADD_VIEW_TO_MESSAGE_LIST' | 'ASK_AI' | 'ASSIGN_AI_CHAT' | 'CANCEL_DASHBOARD_LAYOUT' | 'CANCEL_MESSAGE_CAMPAIGN' | 'COMPOSE_CAMPAIGN' | 'COMPOSE_EMAIL' | 'CREATE_NEW_RECORD' | 'CREATE_NEW_VIEW' | 'DEACTIVATE_WORKFLOW' | 'DELETE_MULTIPLE_RECORDS' | 'DELETE_RECORDS' | 'DELETE_SINGLE_RECORD' | 'DESTROY_MULTIPLE_RECORDS' | 'DESTROY_RECORDS' | 'DESTROY_SINGLE_RECORD' | 'DISCARD_DRAFT_WORKFLOW' | 'DUPLICATE_DASHBOARD' | 'DUPLICATE_MESSAGE_CAMPAIGN' | 'DUPLICATE_MESSAGE_LIST' | 'DUPLICATE_WORKFLOW' | 'EDIT_DASHBOARD_LAYOUT' | 'EDIT_RECORD_PAGE_LAYOUT' | 'EMAIL_BLOCK_SETTINGS' | 'EMAIL_PAGE_STYLE' | 'EXPORT_FROM_RECORD_INDEX' | 'EXPORT_FROM_RECORD_SHOW' | 'EXPORT_MULTIPLE_RECORDS' | 'EXPORT_NOTE_TO_PDF' | 'EXPORT_RECORDS' | 'EXPORT_VIEW' | 'FRONT_COMPONENT_RENDERER' | 'GO_TO_COMPANIES' | 'GO_TO_DASHBOARDS' | 'GO_TO_NOTES' | 'GO_TO_OPPORTUNITIES' | 'GO_TO_PEOPLE' | 'GO_TO_RUNS' | 'GO_TO_SETTINGS' | 'GO_TO_TASKS' | 'GO_TO_WORKFLOWS' | 'HIDE_DELETED_RECORDS' | 'IMPORT_RECORDS' | 'MARK_AI_CHAT_AS_DONE' | 'MARK_AI_CHAT_AS_READ' | 'MARK_AI_CHAT_AS_UNREAD' | 'MERGE_MULTIPLE_RECORDS' | 'NAVIGATE_TO_NEXT_RECORD' | 'NAVIGATE_TO_PREVIOUS_RECORD' | 'NAVIGATION' | 'NEW_AI_CHAT' | 'REMOVE_FROM_FAVORITES' | 'REOPEN_AI_CHAT' | 'REPLY_TO_EMAIL_THREAD' | 'RESTORE_MULTIPLE_RECORDS' | 'RESTORE_RECORDS' | 'RESTORE_SINGLE_RECORD' | 'RETRY_WORKFLOW_RUN' | 'SAVE_DASHBOARD_LAYOUT' | 'SEARCH_RECORDS' | 'SEARCH_RECORDS_FALLBACK' | 'SEE_ACTIVE_VERSION_WORKFLOW' | 'SEE_DELETED_RECORDS' | 'SEE_RUNS_WORKFLOW' | 'SEE_RUNS_WORKFLOW_VERSION' | 'SEE_VERSIONS_WORKFLOW' | 'SEE_VERSIONS_WORKFLOW_VERSION' | 'SEE_VERSION_WORKFLOW_RUN' | 'SEE_WORKFLOW_WORKFLOW_RUN' | 'SEE_WORKFLOW_WORKFLOW_VERSION' | 'SEND_MESSAGE_CAMPAIGN' | 'SEND_MESSAGE_CAMPAIGN_TEST' | 'SHARE_RECORD' | 'SNOOZE_AI_CHAT' | 'STOP_WORKFLOW_RUN' | 'SUBSCRIBE_TO_AI_CHAT' | 'TEST_WORKFLOW' | 'TIDY_UP_WORKFLOW' | 'TOGGLE_WORKFLOW_VISIBILITY' | 'TRIGGER_WORKFLOW_VERSION' | 'UNSUBSCRIBE_FROM_AI_CHAT' | 'UPDATE_MULTIPLE_RECORDS' | 'USE_AS_DRAFT_WORKFLOW_VERSION' | 'VIEW_PREVIOUS_AI_CHATS'
+export type EngineComponentKey = 'ACTIVATE_WORKFLOW' | 'ADD_NODE_WORKFLOW' | 'ADD_TO_FAVORITES' | 'ADD_TO_MESSAGE_LIST' | 'ADD_VIEW_TO_MESSAGE_LIST' | 'ASK_AI' | 'ASSIGN_AI_CHAT' | 'CANCEL_DASHBOARD_LAYOUT' | 'CANCEL_MESSAGE_CAMPAIGN' | 'COMPOSE_CAMPAIGN' | 'COMPOSE_EMAIL' | 'CREATE_NEW_RECORD' | 'CREATE_NEW_VIEW' | 'DEACTIVATE_WORKFLOW' | 'DELETE_MULTIPLE_RECORDS' | 'DELETE_RECORDS' | 'DELETE_SINGLE_RECORD' | 'DESTROY_MULTIPLE_RECORDS' | 'DESTROY_RECORDS' | 'DESTROY_SINGLE_RECORD' | 'DISCARD_DRAFT_WORKFLOW' | 'DUPLICATE_DASHBOARD' | 'DUPLICATE_MESSAGE_CAMPAIGN' | 'DUPLICATE_MESSAGE_LIST' | 'DUPLICATE_WORKFLOW' | 'EDIT_DASHBOARD_LAYOUT' | 'EDIT_RECORD_PAGE_LAYOUT' | 'EMAIL_BLOCK_SETTINGS' | 'EMAIL_PAGE_STYLE' | 'EXPORT_FROM_RECORD_INDEX' | 'EXPORT_FROM_RECORD_SHOW' | 'EXPORT_MULTIPLE_RECORDS' | 'EXPORT_NOTE_TO_PDF' | 'EXPORT_RECORDS' | 'EXPORT_VIEW' | 'FRONT_COMPONENT_RENDERER' | 'GO_TO_COMPANIES' | 'GO_TO_DASHBOARDS' | 'GO_TO_NOTES' | 'GO_TO_OPPORTUNITIES' | 'GO_TO_PEOPLE' | 'GO_TO_RUNS' | 'GO_TO_SETTINGS' | 'GO_TO_TASKS' | 'GO_TO_WORKFLOWS' | 'HIDE_DELETED_RECORDS' | 'IMPORT_RECORDS' | 'MARK_AI_CHAT_AS_DONE' | 'MARK_AI_CHAT_AS_READ' | 'MARK_AI_CHAT_AS_UNREAD' | 'MERGE_MULTIPLE_RECORDS' | 'NAVIGATE_TO_NEXT_RECORD' | 'NAVIGATE_TO_PREVIOUS_RECORD' | 'NAVIGATION' | 'NEW_AI_CHAT' | 'REMOVE_FROM_FAVORITES' | 'REOPEN_AI_CHAT' | 'REPLY_TO_EMAIL_THREAD' | 'RESTORE_MULTIPLE_RECORDS' | 'RESTORE_RECORDS' | 'RESTORE_SINGLE_RECORD' | 'RETRY_WORKFLOW_RUN' | 'SAVE_DASHBOARD_LAYOUT' | 'SEARCH_RECORDS' | 'SEARCH_RECORDS_FALLBACK' | 'SEE_ACTIVE_VERSION_WORKFLOW' | 'SEE_DELETED_RECORDS' | 'SEE_RUNS_WORKFLOW' | 'SEE_RUNS_WORKFLOW_VERSION' | 'SEE_VERSIONS_WORKFLOW' | 'SEE_VERSIONS_WORKFLOW_VERSION' | 'SEE_VERSION_WORKFLOW_RUN' | 'SEE_WORKFLOW_WORKFLOW_RUN' | 'SEE_WORKFLOW_WORKFLOW_VERSION' | 'SEND_MESSAGE_CAMPAIGN' | 'SEND_MESSAGE_CAMPAIGN_TEST' | 'SHARE_RECORD' | 'SNOOZE_AI_CHAT' | 'START_EMAIL_SEQUENCE' | 'STOP_WORKFLOW_RUN' | 'SUBSCRIBE_TO_AI_CHAT' | 'TEST_WORKFLOW' | 'TIDY_UP_WORKFLOW' | 'TOGGLE_WORKFLOW_VISIBILITY' | 'TRIGGER_WORKFLOW_VERSION' | 'UNSUBSCRIBE_FROM_AI_CHAT' | 'UPDATE_MULTIPLE_RECORDS' | 'USE_AS_DRAFT_WORKFLOW_VERSION' | 'VIEW_PREVIOUS_AI_CHATS'
 
 export interface EnqueueJobResult {
     enqueued: Scalars['Boolean']
@@ -2193,6 +2274,7 @@ export interface Mutation {
     saveImapSmtpCaldavAccount: ImapSmtpCaldavConnectionSuccess
     sendChatMessage: SendChatMessageResult
     sendEmail: SendEmailOutput
+    sendEmailSequenceTestEmail: Scalars['String']
     sendInboxMessage: SendInboxMessageResult
     sendInvitations: SendInvitations
     sendMessageCampaign: SendMessageCampaignOutputDTO
@@ -2209,8 +2291,10 @@ export interface Mutation {
     signUpInWorkspace: SignUp
     skipSyncEmailOnboardingStep: OnboardingStepSuccess
     startChannelSync: ChannelSyncSuccess
+    startEmailSequence: EmailSequenceEnrollment
     startWorkspaceSetupChat: StartWorkspaceSetupChatResult
     stopAgentChatStream: Scalars['Boolean']
+    stopEmailSequence: EmailSequenceEnrollment
     stopImpersonation: StopImpersonation
     switchBillingPlan: BillingUpdate
     switchSubscriptionInterval: BillingUpdate
@@ -2236,6 +2320,8 @@ export interface Mutation {
     updateCalendarChannel: CalendarChannel
     updateCommandMenuItem: CommandMenuItem
     updateEmailGroupChannel: MessageChannel
+    updateEmailSequenceSetting: EmailSequenceSetting
+    updateEmailSequenceTemplate: EmailSequenceTemplate
     updateFrontComponent: FrontComponent
     updateLabPublicFeatureFlag: FeatureFlag
     updateManyNavigationMenuItems: NavigationMenuItem[]
@@ -2749,6 +2835,10 @@ export interface Query {
     currentUserApplicationAuthorizations: ApplicationAuthorization[]
     currentUserSessions: UserSession[]
     currentWorkspace: Workspace
+    emailSequenceDashboard: EmailSequenceDashboard
+    emailSequenceEnrollmentsForPerson: EmailSequenceEnrollment[]
+    emailSequenceSetting: EmailSequenceSetting
+    emailSequenceTemplates: EmailSequenceTemplate[]
     enterpriseCheckoutSession?: Scalars['String']
     enterprisePortalSession?: Scalars['String']
     enterpriseSubscriptionStatus?: EnterpriseSubscriptionStatusDTO
@@ -5406,6 +5496,96 @@ export interface EmailPasswordResetLinkGenqlSelection{
     __scalar?: boolean | number
 }
 
+export interface EmailSequenceDashboardGenqlSelection{
+    enrollments?: EmailSequenceEnrollmentGenqlSelection
+    stats?: EmailSequenceStatsGenqlSelection
+    __typename?: boolean | number
+    __scalar?: boolean | number
+}
+
+export interface EmailSequenceEnrollmentGenqlSelection{
+    companyName?: boolean | number
+    createdAt?: boolean | number
+    email?: boolean | number
+    endedAt?: boolean | number
+    id?: boolean | number
+    industry?: boolean | number
+    jobTitle?: boolean | number
+    lastError?: boolean | number
+    lastSentAt?: boolean | number
+    lastStepKey?: boolean | number
+    messages?: EmailSequenceMessageGenqlSelection
+    nextSendAt?: boolean | number
+    nextStage?: boolean | number
+    personId?: boolean | number
+    personName?: boolean | number
+    status?: boolean | number
+    track?: boolean | number
+    __typename?: boolean | number
+    __scalar?: boolean | number
+}
+
+export interface EmailSequenceIndustryLineGenqlSelection{
+    industry?: boolean | number
+    line?: boolean | number
+    __typename?: boolean | number
+    __scalar?: boolean | number
+}
+
+export interface EmailSequenceIndustryLineInput {industry: Scalars['String'],line: Scalars['String']}
+
+export interface EmailSequenceMessageGenqlSelection{
+    firstOpenedAt?: boolean | number
+    id?: boolean | number
+    messageThreadId?: boolean | number
+    openCount?: boolean | number
+    sentAt?: boolean | number
+    stepKey?: boolean | number
+    subject?: boolean | number
+    __typename?: boolean | number
+    __scalar?: boolean | number
+}
+
+export interface EmailSequenceSettingGenqlSelection{
+    dailySendLimit?: boolean | number
+    industryLines?: EmailSequenceIndustryLineGenqlSelection
+    isOpenTrackingEnabled?: boolean | number
+    sendDays?: boolean | number
+    sendWindowEndHour?: boolean | number
+    sendWindowStartHour?: boolean | number
+    sendingMailbox?: boolean | number
+    signature?: boolean | number
+    stepDelaysInDays?: boolean | number
+    timeZone?: boolean | number
+    __typename?: boolean | number
+    __scalar?: boolean | number
+}
+
+export interface EmailSequenceStatsGenqlSelection{
+    active?: boolean | number
+    bounced?: boolean | number
+    completed?: boolean | number
+    emailsOpened?: boolean | number
+    emailsSent?: boolean | number
+    emailsSentToday?: boolean | number
+    failed?: boolean | number
+    replied?: boolean | number
+    stopped?: boolean | number
+    __typename?: boolean | number
+    __scalar?: boolean | number
+}
+
+export interface EmailSequenceTemplateGenqlSelection{
+    body?: boolean | number
+    id?: boolean | number
+    stepKey?: boolean | number
+    subject?: boolean | number
+    track?: boolean | number
+    updatedAt?: boolean | number
+    __typename?: boolean | number
+    __scalar?: boolean | number
+}
+
 export interface EmailThreadConfigurationGenqlSelection{
     configurationType?: boolean | number
     __typename?: boolean | number
@@ -6410,6 +6590,7 @@ export interface MutationGenqlSelection{
     saveImapSmtpCaldavAccount?: (ImapSmtpCaldavConnectionSuccessGenqlSelection & { __args: {connectionParameters: EmailAccountConnectionParameters, handle: Scalars['String'], id?: (Scalars['UUID'] | null)} })
     sendChatMessage?: (SendChatMessageResultGenqlSelection & { __args: {browsingContext?: (Scalars['JSON'] | null), fileAttachments?: (FileAttachmentInput[] | null), mentionedWorkspaceMemberIds?: (Scalars['UUID'][] | null), messageId: Scalars['UUID'], modelId?: (Scalars['String'] | null), text: Scalars['String'], threadId: Scalars['UUID']} })
     sendEmail?: (SendEmailOutputGenqlSelection & { __args: {input: SendEmailInput} })
+    sendEmailSequenceTestEmail?: { __args: {input: SendEmailSequenceTestEmailInput} }
     sendInboxMessage?: (SendInboxMessageResultGenqlSelection & { __args: {input: SendInboxMessageInput} })
     sendInvitations?: (SendInvitationsGenqlSelection & { __args: {emails: Scalars['String'][], roleId?: (Scalars['UUID'] | null)} })
     sendMessageCampaign?: (SendMessageCampaignOutputDTOGenqlSelection & { __args: {input: SendMessageCampaignInput} })
@@ -6426,8 +6607,10 @@ export interface MutationGenqlSelection{
     signUpInWorkspace?: (SignUpGenqlSelection & { __args: {captchaToken?: (Scalars['String'] | null), email: Scalars['String'], locale?: (Scalars['String'] | null), password: Scalars['String'], verifyEmailRedirectPath?: (Scalars['String'] | null), workspaceId?: (Scalars['UUID'] | null), workspaceInviteHash?: (Scalars['String'] | null), workspacePersonalInviteToken?: (Scalars['String'] | null)} })
     skipSyncEmailOnboardingStep?: (OnboardingStepSuccessGenqlSelection & { __args: {isAutoSkipped: Scalars['Boolean']} })
     startChannelSync?: (ChannelSyncSuccessGenqlSelection & { __args: {connectedAccountId: Scalars['UUID']} })
+    startEmailSequence?: (EmailSequenceEnrollmentGenqlSelection & { __args: {input: StartEmailSequenceInput} })
     startWorkspaceSetupChat?: (StartWorkspaceSetupChatResultGenqlSelection & { __args?: {companyContext?: (Scalars['JSON'] | null), personContext?: (Scalars['JSON'] | null)} })
     stopAgentChatStream?: { __args: {threadId: Scalars['UUID']} }
+    stopEmailSequence?: (EmailSequenceEnrollmentGenqlSelection & { __args: {input: StopEmailSequenceInput} })
     stopImpersonation?: StopImpersonationGenqlSelection
     switchBillingPlan?: (BillingUpdateGenqlSelection & { __args?: {plan?: (BillingPlanKey | null)} })
     switchSubscriptionInterval?: BillingUpdateGenqlSelection
@@ -6453,6 +6636,8 @@ export interface MutationGenqlSelection{
     updateCalendarChannel?: (CalendarChannelGenqlSelection & { __args: {input: UpdateCalendarChannelInput} })
     updateCommandMenuItem?: (CommandMenuItemGenqlSelection & { __args: {input: UpdateCommandMenuItemInput} })
     updateEmailGroupChannel?: (MessageChannelGenqlSelection & { __args: {input: UpdateEmailGroupChannelInput} })
+    updateEmailSequenceSetting?: (EmailSequenceSettingGenqlSelection & { __args: {input: UpdateEmailSequenceSettingInput} })
+    updateEmailSequenceTemplate?: (EmailSequenceTemplateGenqlSelection & { __args: {input: UpdateEmailSequenceTemplateInput} })
     updateFrontComponent?: (FrontComponentGenqlSelection & { __args: {input: UpdateFrontComponentInput} })
     updateLabPublicFeatureFlag?: (FeatureFlagGenqlSelection & { __args: {input: UpdateLabPublicFeatureFlagInput} })
     updateManyNavigationMenuItems?: (NavigationMenuItemGenqlSelection & { __args: {inputs: UpdateOneNavigationMenuItemInput[]} })
@@ -7001,6 +7186,10 @@ export interface QueryGenqlSelection{
     currentUserApplicationAuthorizations?: ApplicationAuthorizationGenqlSelection
     currentUserSessions?: UserSessionGenqlSelection
     currentWorkspace?: WorkspaceGenqlSelection
+    emailSequenceDashboard?: EmailSequenceDashboardGenqlSelection
+    emailSequenceEnrollmentsForPerson?: (EmailSequenceEnrollmentGenqlSelection & { __args: {personId: Scalars['UUID']} })
+    emailSequenceSetting?: EmailSequenceSettingGenqlSelection
+    emailSequenceTemplates?: EmailSequenceTemplateGenqlSelection
     enterpriseCheckoutSession?: { __args: {billingInterval?: (Scalars['String'] | null)} } | boolean | number
     enterprisePortalSession?: { __args: {returnUrlPath?: (Scalars['String'] | null)} } | boolean | number
     enterpriseSubscriptionStatus?: EnterpriseSubscriptionStatusDTOGenqlSelection
@@ -7395,6 +7584,8 @@ export interface SendEmailOutputGenqlSelection{
     __scalar?: boolean | number
 }
 
+export interface SendEmailSequenceTestEmailInput {industry: Scalars['String'],stepKey: Scalars['String'],track: Scalars['String']}
+
 export interface SendEmailViaDomainOutputGenqlSelection{
     messageId?: boolean | number
     __typename?: boolean | number
@@ -7503,12 +7694,16 @@ export interface StandaloneRichTextConfigurationGenqlSelection{
     __scalar?: boolean | number
 }
 
+export interface StartEmailSequenceInput {industry: Scalars['String'],personId: Scalars['UUID'],track: Scalars['String']}
+
 export interface StartWorkspaceSetupChatResultGenqlSelection{
     outcome?: boolean | number
     thread?: AgentChatThreadGenqlSelection
     __typename?: boolean | number
     __scalar?: boolean | number
 }
+
+export interface StopEmailSequenceInput {enrollmentId: Scalars['UUID']}
 
 export interface StopImpersonationGenqlSelection{
     canRestoreImpersonatorSession?: boolean | number
@@ -7725,6 +7920,10 @@ export interface UpdateCalendarChannelInputUpdates {contactAutoCreationPolicy?: 
 export interface UpdateCommandMenuItemInput {availabilityObjectMetadataId?: (Scalars['UUID'] | null),availabilityType?: (CommandMenuItemAvailabilityType | null),engineComponentKey?: (EngineComponentKey | null),hotKeys?: (Scalars['String'][] | null),icon?: (Scalars['String'] | null),id: Scalars['UUID'],isPinned?: (Scalars['Boolean'] | null),label?: (Scalars['String'] | null),pageLayoutId?: (Scalars['UUID'] | null),position?: (Scalars['Float'] | null),shortLabel?: (Scalars['String'] | null)}
 
 export interface UpdateEmailGroupChannelInput {displayName?: (Scalars['String'] | null),id: Scalars['UUID']}
+
+export interface UpdateEmailSequenceSettingInput {dailySendLimit?: (Scalars['Int'] | null),industryLines?: (EmailSequenceIndustryLineInput[] | null),isOpenTrackingEnabled?: (Scalars['Boolean'] | null),sendDays?: (Scalars['Int'][] | null),sendWindowEndHour?: (Scalars['Int'] | null),sendWindowStartHour?: (Scalars['Int'] | null),signature?: (Scalars['String'] | null),stepDelaysInDays?: (Scalars['Int'][] | null),timeZone?: (Scalars['String'] | null)}
+
+export interface UpdateEmailSequenceTemplateInput {body: Scalars['String'],stepKey: Scalars['String'],subject?: (Scalars['String'] | null),track: Scalars['String']}
 
 export interface UpdateFieldInput {defaultValue?: (Scalars['JSON'] | null),description?: (Scalars['String'] | null),icon?: (Scalars['String'] | null),isActive?: (Scalars['Boolean'] | null),isAuditLogged?: (Scalars['Boolean'] | null),isLabelSyncedWithName?: (Scalars['Boolean'] | null),isNullable?: (Scalars['Boolean'] | null),isSearchable?: (Scalars['Boolean'] | null),isSystem?: (Scalars['Boolean'] | null),isUIEditable?: (Scalars['Boolean'] | null),isUIReadOnly?: (Scalars['Boolean'] | null),isUnique?: (Scalars['Boolean'] | null),label?: (Scalars['String'] | null),morphRelationsUpdatePayload?: (Scalars['JSON'][] | null),name?: (Scalars['String'] | null),objectMetadataId?: (Scalars['UUID'] | null),options?: (Scalars['JSON'] | null),settings?: (Scalars['JSON'] | null),translations?: (MetadataTranslationOverrideInput[] | null),universalIdentifier?: (Scalars['String'] | null)}
 
@@ -9468,6 +9667,62 @@ export interface WorkspaceUrlsAndIdGenqlSelection{
     export const isEmailPasswordResetLink = (obj?: { __typename?: any } | null): obj is EmailPasswordResetLink => {
       if (!obj?.__typename) throw new Error('__typename is missing in "isEmailPasswordResetLink"')
       return EmailPasswordResetLink_possibleTypes.includes(obj.__typename)
+    }
+    
+
+
+    const EmailSequenceDashboard_possibleTypes: string[] = ['EmailSequenceDashboard']
+    export const isEmailSequenceDashboard = (obj?: { __typename?: any } | null): obj is EmailSequenceDashboard => {
+      if (!obj?.__typename) throw new Error('__typename is missing in "isEmailSequenceDashboard"')
+      return EmailSequenceDashboard_possibleTypes.includes(obj.__typename)
+    }
+    
+
+
+    const EmailSequenceEnrollment_possibleTypes: string[] = ['EmailSequenceEnrollment']
+    export const isEmailSequenceEnrollment = (obj?: { __typename?: any } | null): obj is EmailSequenceEnrollment => {
+      if (!obj?.__typename) throw new Error('__typename is missing in "isEmailSequenceEnrollment"')
+      return EmailSequenceEnrollment_possibleTypes.includes(obj.__typename)
+    }
+    
+
+
+    const EmailSequenceIndustryLine_possibleTypes: string[] = ['EmailSequenceIndustryLine']
+    export const isEmailSequenceIndustryLine = (obj?: { __typename?: any } | null): obj is EmailSequenceIndustryLine => {
+      if (!obj?.__typename) throw new Error('__typename is missing in "isEmailSequenceIndustryLine"')
+      return EmailSequenceIndustryLine_possibleTypes.includes(obj.__typename)
+    }
+    
+
+
+    const EmailSequenceMessage_possibleTypes: string[] = ['EmailSequenceMessage']
+    export const isEmailSequenceMessage = (obj?: { __typename?: any } | null): obj is EmailSequenceMessage => {
+      if (!obj?.__typename) throw new Error('__typename is missing in "isEmailSequenceMessage"')
+      return EmailSequenceMessage_possibleTypes.includes(obj.__typename)
+    }
+    
+
+
+    const EmailSequenceSetting_possibleTypes: string[] = ['EmailSequenceSetting']
+    export const isEmailSequenceSetting = (obj?: { __typename?: any } | null): obj is EmailSequenceSetting => {
+      if (!obj?.__typename) throw new Error('__typename is missing in "isEmailSequenceSetting"')
+      return EmailSequenceSetting_possibleTypes.includes(obj.__typename)
+    }
+    
+
+
+    const EmailSequenceStats_possibleTypes: string[] = ['EmailSequenceStats']
+    export const isEmailSequenceStats = (obj?: { __typename?: any } | null): obj is EmailSequenceStats => {
+      if (!obj?.__typename) throw new Error('__typename is missing in "isEmailSequenceStats"')
+      return EmailSequenceStats_possibleTypes.includes(obj.__typename)
+    }
+    
+
+
+    const EmailSequenceTemplate_possibleTypes: string[] = ['EmailSequenceTemplate']
+    export const isEmailSequenceTemplate = (obj?: { __typename?: any } | null): obj is EmailSequenceTemplate => {
+      if (!obj?.__typename) throw new Error('__typename is missing in "isEmailSequenceTemplate"')
+      return EmailSequenceTemplate_possibleTypes.includes(obj.__typename)
     }
     
 
@@ -11515,6 +11770,7 @@ export const enumEngineComponentKey = {
    SEND_MESSAGE_CAMPAIGN_TEST: 'SEND_MESSAGE_CAMPAIGN_TEST' as const,
    SHARE_RECORD: 'SHARE_RECORD' as const,
    SNOOZE_AI_CHAT: 'SNOOZE_AI_CHAT' as const,
+   START_EMAIL_SEQUENCE: 'START_EMAIL_SEQUENCE' as const,
    STOP_WORKFLOW_RUN: 'STOP_WORKFLOW_RUN' as const,
    SUBSCRIBE_TO_AI_CHAT: 'SUBSCRIBE_TO_AI_CHAT' as const,
    TEST_WORKFLOW: 'TEST_WORKFLOW' as const,

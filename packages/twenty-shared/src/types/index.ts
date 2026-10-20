@@ -77,6 +77,14 @@ export { CrudOperationType } from './CrudOperationType';
 export type { EmailAttachment } from './EmailAttachment';
 export type { EmailConnectionParameters } from './EmailConnectionParameters';
 export { EmailOperation } from './EmailOperation';
+export type { EmailSequenceEnrollmentStatus } from './EmailSequenceEnrollmentStatus';
+export { EMAIL_SEQUENCE_ENROLLMENT_STATUSES } from './EmailSequenceEnrollmentStatus';
+export type { EmailSequenceIndustry } from './EmailSequenceIndustry';
+export { EMAIL_SEQUENCE_INDUSTRIES } from './EmailSequenceIndustry';
+export type { EmailSequenceStepKey } from './EmailSequenceStepKey';
+export { EMAIL_SEQUENCE_STEP_KEYS } from './EmailSequenceStepKey';
+export type { EmailSequenceTrack } from './EmailSequenceTrack';
+export { EMAIL_SEQUENCE_TRACKS } from './EmailSequenceTrack';
 export type { EmptyObject } from './EmptyObject';
 export type {
   SnackBarVariant,
