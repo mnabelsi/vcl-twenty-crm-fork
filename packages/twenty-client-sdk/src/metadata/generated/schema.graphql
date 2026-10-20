@@ -1831,6 +1831,85 @@ type EmailPasswordResetLink {
   success: Boolean!
 }
 
+type EmailSequenceDashboard {
+  enrollments: [EmailSequenceEnrollment!]!
+  stats: EmailSequenceStats!
+}
+
+type EmailSequenceEnrollment {
+  companyName: String
+  createdAt: DateTime!
+  email: String!
+  endedAt: DateTime
+  id: UUID!
+  industry: String!
+  jobTitle: String
+  lastError: String
+  lastSentAt: DateTime
+  lastStepKey: String
+  messages: [EmailSequenceMessage!]!
+  nextSendAt: DateTime
+  nextStage: Int
+  personId: UUID!
+  personName: String!
+  status: String!
+  track: String!
+}
+
+type EmailSequenceIndustryLine {
+  industry: String!
+  line: String!
+}
+
+input EmailSequenceIndustryLineInput {
+  industry: String!
+  line: String!
+}
+
+type EmailSequenceMessage {
+  firstOpenedAt: DateTime
+  id: UUID!
+  messageThreadId: UUID
+  openCount: Int!
+  sentAt: DateTime!
+  stepKey: String!
+  subject: String!
+}
+
+type EmailSequenceSetting {
+  dailySendLimit: Int!
+  industryLines: [EmailSequenceIndustryLine!]!
+  isOpenTrackingEnabled: Boolean!
+  sendDays: [Int!]!
+  sendWindowEndHour: Int!
+  sendWindowStartHour: Int!
+  sendingMailbox: String
+  signature: String!
+  stepDelaysInDays: [Int!]!
+  timeZone: String!
+}
+
+type EmailSequenceStats {
+  active: Int!
+  bounced: Int!
+  completed: Int!
+  emailsOpened: Int!
+  emailsSent: Int!
+  emailsSentToday: Int!
+  failed: Int!
+  replied: Int!
+  stopped: Int!
+}
+
+type EmailSequenceTemplate {
+  body: String!
+  id: UUID!
+  stepKey: String!
+  subject: String
+  track: String!
+  updatedAt: DateTime!
+}
+
 type EmailThreadConfiguration {
   configurationType: WidgetConfigurationType!
 }
@@ -1943,6 +2022,7 @@ enum EngineComponentKey {
   SEND_MESSAGE_CAMPAIGN_TEST
   SHARE_RECORD
   SNOOZE_AI_CHAT
+  START_EMAIL_SEQUENCE
   STOP_WORKFLOW_RUN
   SUBSCRIBE_TO_AI_CHAT
   TEST_WORKFLOW
@@ -3152,6 +3232,7 @@ type Mutation {
   saveImapSmtpCaldavAccount(connectionParameters: EmailAccountConnectionParameters!, handle: String!, id: UUID): ImapSmtpCaldavConnectionSuccess!
   sendChatMessage(browsingContext: JSON, fileAttachments: [FileAttachmentInput!], mentionedWorkspaceMemberIds: [UUID!], messageId: UUID!, modelId: String, text: String!, threadId: UUID!): SendChatMessageResult!
   sendEmail(input: SendEmailInput!): SendEmailOutput!
+  sendEmailSequenceTestEmail(input: SendEmailSequenceTestEmailInput!): String!
   sendInboxMessage(input: SendInboxMessageInput!): SendInboxMessageResult!
   sendInvitations(emails: [String!]!, roleId: UUID): SendInvitations!
   sendMessageCampaign(input: SendMessageCampaignInput!): SendMessageCampaignOutputDTO!
@@ -3168,8 +3249,10 @@ type Mutation {
   signUpInWorkspace(captchaToken: String, email: String!, locale: String, password: String!, verifyEmailRedirectPath: String, workspaceId: UUID, workspaceInviteHash: String, workspacePersonalInviteToken: String): SignUp!
   skipSyncEmailOnboardingStep(isAutoSkipped: Boolean! = false): OnboardingStepSuccess!
   startChannelSync(connectedAccountId: UUID!): ChannelSyncSuccess!
+  startEmailSequence(input: StartEmailSequenceInput!): EmailSequenceEnrollment!
   startWorkspaceSetupChat(companyContext: JSON, personContext: JSON): StartWorkspaceSetupChatResult!
   stopAgentChatStream(threadId: UUID!): Boolean!
+  stopEmailSequence(input: StopEmailSequenceInput!): EmailSequenceEnrollment!
   stopImpersonation: StopImpersonation!
   switchBillingPlan(plan: BillingPlanKey): BillingUpdate!
   switchSubscriptionInterval: BillingUpdate!
@@ -3193,6 +3276,8 @@ type Mutation {
   updateCalendarChannel(input: UpdateCalendarChannelInput!): CalendarChannel!
   updateCommandMenuItem(input: UpdateCommandMenuItemInput!): CommandMenuItem!
   updateEmailGroupChannel(input: UpdateEmailGroupChannelInput!): MessageChannel!
+  updateEmailSequenceSetting(input: UpdateEmailSequenceSettingInput!): EmailSequenceSetting!
+  updateEmailSequenceTemplate(input: UpdateEmailSequenceTemplateInput!): EmailSequenceTemplate!
   updateFrontComponent(input: UpdateFrontComponentInput!): FrontComponent!
   updateLabPublicFeatureFlag(input: UpdateLabPublicFeatureFlagInput!): FeatureFlag!
   updateManyNavigationMenuItems(inputs: [UpdateOneNavigationMenuItemInput!]!): [NavigationMenuItem!]!
@@ -3784,6 +3869,10 @@ type Query {
   currentUserApplicationAuthorizations: [ApplicationAuthorization!]!
   currentUserSessions: [UserSession!]!
   currentWorkspace: Workspace!
+  emailSequenceDashboard: EmailSequenceDashboard!
+  emailSequenceEnrollmentsForPerson(personId: UUID!): [EmailSequenceEnrollment!]!
+  emailSequenceSetting: EmailSequenceSetting!
+  emailSequenceTemplates: [EmailSequenceTemplate!]!
   enterpriseCheckoutSession(billingInterval: String): String
   enterprisePortalSession(returnUrlPath: String): String
   enterpriseSubscriptionStatus: EnterpriseSubscriptionStatusDTO
@@ -4268,6 +4357,12 @@ type SendEmailOutput {
   success: Boolean!
 }
 
+input SendEmailSequenceTestEmailInput {
+  industry: String!
+  stepKey: String!
+  track: String!
+}
+
 type SendEmailViaDomainOutput {
   messageId: String!
 }
@@ -4398,9 +4493,19 @@ type StandaloneRichTextConfiguration {
   configurationType: WidgetConfigurationType!
 }
 
+input StartEmailSequenceInput {
+  industry: String!
+  personId: UUID!
+  track: String!
+}
+
 type StartWorkspaceSetupChatResult {
   outcome: WorkspaceSetupChatOutcome!
   thread: AgentChatThread
+}
+
+input StopEmailSequenceInput {
+  enrollmentId: UUID!
 }
 
 type StopImpersonation {
@@ -4696,6 +4801,25 @@ input UpdateCommandMenuItemInput {
 input UpdateEmailGroupChannelInput {
   displayName: String
   id: UUID!
+}
+
+input UpdateEmailSequenceSettingInput {
+  dailySendLimit: Int
+  industryLines: [EmailSequenceIndustryLineInput!]
+  isOpenTrackingEnabled: Boolean
+  sendDays: [Int!]
+  sendWindowEndHour: Int
+  sendWindowStartHour: Int
+  signature: String
+  stepDelaysInDays: [Int!]
+  timeZone: String
+}
+
+input UpdateEmailSequenceTemplateInput {
+  body: String!
+  stepKey: String!
+  subject: String
+  track: String!
 }
 
 input UpdateFieldInput {
