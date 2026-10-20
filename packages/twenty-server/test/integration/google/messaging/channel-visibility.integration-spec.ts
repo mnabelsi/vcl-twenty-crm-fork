@@ -71,13 +71,14 @@ describe('Message channel visibility (integration)', () => {
     await channel?.cleanup().catch(() => undefined);
   });
 
-  it('shows the full message to another member when the channel shares everything', async () => {
+  // IS_EMAIL_BODY_VISIBLE_TO_OWNER_ONLY defaults to true, so sharing everything still keeps the body private
+  it('masks the body but keeps the subject for another member even when the channel shares everything', async () => {
     await setVisibility(MessageChannelVisibility.SHARE_EVERYTHING);
 
     const [message] = await readMessageAs(makeGraphqlApiRequestWithMemberRole);
 
     expect(message.subject).toBe(subject);
-    expect(message.text).not.toBe(RESTRICTED);
+    expect(message.text).toBe(RESTRICTED);
   }, 60000);
 
   it('masks the body but keeps the subject for another member under subject visibility', async () => {
