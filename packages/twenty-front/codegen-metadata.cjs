@@ -30,6 +30,7 @@ module.exports = {
     './src/modules/validation-rules/graphql/**/*.{ts,tsx}',
     './src/modules/navigation-menu-item/**/graphql/**/*.{ts,tsx}',
     './src/modules/command-menu-item/graphql/**/*.{ts,tsx}',
+    './src/modules/email-sequence/graphql/**/*.{ts,tsx}',
     './src/modules/file/graphql/**/*.{ts,tsx}',
     './src/modules/onboarding/graphql/**/*.{ts,tsx}',
     './src/modules/front-components/graphql/**/*.{ts,tsx}',

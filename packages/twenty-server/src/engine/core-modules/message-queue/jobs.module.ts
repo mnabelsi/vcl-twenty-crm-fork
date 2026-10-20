@@ -27,6 +27,7 @@ import { PendingWakeUpModule } from 'src/engine/core-modules/pending-wake-up/pen
 import { EmailSenderJob } from 'src/engine/core-modules/email/email-sender.job';
 import { EmailModule } from 'src/engine/core-modules/email/email.module';
 import { RecordExportModule } from 'src/engine/core-modules/record-export/record-export.module';
+import { EmailSequenceModule } from 'src/modules/email-sequence/email-sequence.module';
 import { EmailingModule } from 'src/modules/emailing/emailing.module';
 import { AddPeopleToMessageListJob } from 'src/modules/emailing/jobs/add-people-to-message-list.job';
 import { MaterializeCampaignChunkJob } from 'src/modules/emailing/jobs/materialize-campaign-chunk.job';
@@ -108,6 +109,7 @@ import { WorkflowModule } from 'src/modules/workflow/workflow.module';
     LogicFunctionPrebuiltWarmUpModule,
     EnterpriseModule,
     EmailingModule,
+    EmailSequenceModule,
     ApplicationInstallModule,
     ApplicationManifestModule,
     ApplicationRegistrationModule,

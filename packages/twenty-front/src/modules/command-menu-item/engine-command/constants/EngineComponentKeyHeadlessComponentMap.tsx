@@ -11,6 +11,7 @@ import { SendMessageCampaignTestSingleRecordCommand } from '@/command-menu-item/
 import { OpenEmailBlockSettingsSingleRecordCommand } from '@/command-menu-item/engine-command/record/components/OpenEmailBlockSettingsSingleRecordCommand';
 import { OpenEmailPageStyleSingleRecordCommand } from '@/command-menu-item/engine-command/record/components/OpenEmailPageStyleSingleRecordCommand';
 import { ComposeEmailCommand } from '@/command-menu-item/engine-command/global/components/ComposeEmailCommand';
+import { StartEmailSequenceSingleRecordCommand } from '@/command-menu-item/engine-command/record/single-record/components/StartEmailSequenceSingleRecordCommand';
 import { EditLayoutCommand } from '@/command-menu-item/engine-command/global/components/EditLayoutCommand';
 import { DeleteRecordsCommand } from '@/command-menu-item/engine-command/record/components/DeleteRecordsCommand';
 import { DestroyRecordsCommand } from '@/command-menu-item/engine-command/record/components/DestroyRecordsCommand';
@@ -295,6 +296,9 @@ export const ENGINE_COMPONENT_KEY_COMPONENT_MAP: Record<
     <AgentChatThreadInboxCommand action="assign" />
   ),
   [EngineComponentKey.COMPOSE_EMAIL]: <ComposeEmailCommand />,
+  [EngineComponentKey.START_EMAIL_SEQUENCE]: (
+    <StartEmailSequenceSingleRecordCommand />
+  ),
   [EngineComponentKey.COMPOSE_CAMPAIGN]: <ComposeCampaignCommand />,
   [EngineComponentKey.SEND_MESSAGE_CAMPAIGN]: (
     <SendMessageCampaignSingleRecordCommand />

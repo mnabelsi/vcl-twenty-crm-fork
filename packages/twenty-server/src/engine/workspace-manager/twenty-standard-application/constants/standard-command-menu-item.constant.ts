@@ -1809,6 +1809,29 @@ export const STANDARD_COMMAND_MENU_ITEMS = {
     engineComponentKey: EngineComponentKey.ADD_TO_MESSAGE_LIST,
     hotKeys: null,
   },
+  startEmailSequence: {
+    universalIdentifier: 'b05f6867-68f8-4cda-85b6-918b84c0e67a',
+    label: i18nLabel(
+      msg({
+        message: `Start Email Sequence`,
+        context: 'commandMenuItem.label',
+      }),
+    ),
+    icon: 'IconSend',
+    isPinned: true,
+    position: 81,
+    shortLabel: i18nLabel(
+      msg({ message: `Sequence`, context: 'commandMenuItem.shortLabel' }),
+    ),
+    availabilityType: CommandMenuItemAvailabilityType.RECORD_SELECTION,
+    conditionalAvailabilityExpression:
+      'numberOfSelectedRecords == 1 and permissionFlags.SEND_EMAIL_TOOL',
+    availabilityObjectMetadataUniversalIdentifier:
+      STANDARD_OBJECTS.person.universalIdentifier,
+    frontComponentUniversalIdentifier: null,
+    engineComponentKey: EngineComponentKey.START_EMAIL_SEQUENCE,
+    hotKeys: null,
+  },
   addViewToMessageList: {
     universalIdentifier: '679bd5df-324f-4d9c-becc-370d824f4db0',
     label: i18nLabel(

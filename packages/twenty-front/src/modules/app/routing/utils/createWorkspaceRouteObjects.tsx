@@ -27,6 +27,12 @@ const WorkflowCoreShowPage = lazy(() =>
   })),
 );
 
+const EmailSequencesPage = lazy(() =>
+  import('~/pages/email-sequences/EmailSequencesPage').then((module) => ({
+    default: module.EmailSequencesPage,
+  })),
+);
+
 const PeopleTreePage = lazy(() =>
   import('~/pages/people-tree/PeopleTreePage').then((module) => ({
     default: module.PeopleTreePage,
@@ -115,6 +121,14 @@ export const createWorkspaceRouteObjects = ({
       element: (
         <LazyRoute>
           <AgentCoreShowPage />
+        </LazyRoute>
+      ),
+    },
+    {
+      path: AppPath.EmailSequencesPage,
+      element: (
+        <LazyRoute fallback={<RecordIndexSkeletonLoader />}>
+          <EmailSequencesPage />
         </LazyRoute>
       ),
     },
