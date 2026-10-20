@@ -335,6 +335,24 @@ export class ConfigVariables {
   SHOULD_SEED_STANDARD_RECORD_PAGE_LAYOUTS = true;
 
   @ConfigVariablesMetadata({
+    group: ConfigVariablesGroup.ADVANCED_SETTINGS,
+    description:
+      'Email domains of your own organisation. Emails whose participants all belong to these domains are never synced, and people on these domains are never created as contacts.',
+    type: ConfigVariableType.ARRAY,
+  })
+  @IsOptional()
+  INTERNAL_EMAIL_DOMAINS: string[] = ['vcl.solutions', 'ttmassociates.com'];
+
+  @ConfigVariablesMetadata({
+    group: ConfigVariablesGroup.ADVANCED_SETTINGS,
+    description:
+      'Show email bodies only to the owner of the mailbox that synced them. Other members see participants and subject, even when a mailbox is set to share everything.',
+    type: ConfigVariableType.BOOLEAN,
+  })
+  @IsOptional()
+  IS_EMAIL_BODY_VISIBLE_TO_OWNER_ONLY = true;
+
+  @ConfigVariablesMetadata({
     group: ConfigVariablesGroup.MICROSOFT_AUTH,
     description: 'Enable or disable the Microsoft messaging integration',
     type: ConfigVariableType.BOOLEAN,

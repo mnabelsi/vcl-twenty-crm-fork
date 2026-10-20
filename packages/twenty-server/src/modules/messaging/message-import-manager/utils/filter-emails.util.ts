@@ -2,6 +2,7 @@ import { type MessageWithParticipants } from 'src/modules/messaging/message-impo
 import { filterOutBlocklistedMessages } from 'src/modules/messaging/message-import-manager/utils/filter-out-blocklisted-messages.util';
 import { filterOutIcsAttachments } from 'src/modules/messaging/message-import-manager/utils/filter-out-ics-attachments.util';
 import { filterOutInternals } from 'src/modules/messaging/message-import-manager/utils/filter-out-internals.util';
+import { filterOutOrganisationInternalMessages } from 'src/modules/messaging/message-import-manager/utils/filter-out-organisation-internal-messages.util';
 import { filterOutUnsubscribeRequests } from 'src/modules/messaging/message-import-manager/utils/filter-out-unsubscribe-requests.util';
 import { isExcludedGroupEmailMessage } from 'src/modules/messaging/message-import-manager/utils/is-excluded-group-email-message.util';
 import { isWorkEmail } from 'src/utils/is-work-email';
@@ -13,6 +14,7 @@ export const filterEmails = (
   blocklist: string[],
   excludeGroupEmails: boolean = true,
   isInternalMessagesImportEnabled: boolean = false,
+  internalEmailDomains: string[] = [],
 ) => {
   const messagesWithoutIcsAttachments = filterOutIcsAttachments(messages);
 
@@ -21,10 +23,13 @@ export const filterEmails = (
     messagesWithoutIcsAttachments,
   );
 
-  const messagesWithoutBlocklisted = filterOutBlocklistedMessages(
-    [primaryHandle, ...handleAliases],
-    messagesWithoutUnsubscribeRequests,
-    blocklist,
+  const messagesWithoutBlocklisted = filterOutOrganisationInternalMessages(
+    filterOutBlocklistedMessages(
+      [primaryHandle, ...handleAliases],
+      messagesWithoutUnsubscribeRequests,
+      blocklist,
+    ),
+    internalEmailDomains,
   );
 
   const shouldFilterOutInternals =

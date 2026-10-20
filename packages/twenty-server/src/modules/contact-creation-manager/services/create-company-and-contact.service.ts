@@ -17,6 +17,7 @@ import { ExceptionHandlerService } from 'src/engine/core-modules/exception-handl
 import { UserWorkspaceEntity } from 'src/engine/core-modules/user-workspace/user-workspace.entity';
 import { WorkspaceEntity } from 'src/engine/core-modules/workspace/workspace.entity';
 import { type ConnectedAccountEntity } from 'src/engine/metadata-modules/connected-account/entities/connected-account.entity';
+import { TwentyConfigService } from 'src/engine/core-modules/twenty-config/twenty-config.service';
 import { WorkspaceOrmManager } from 'src/engine/twenty-orm/workspace-orm.manager';
 import { buildSystemAuthContext } from 'src/engine/twenty-orm/utils/build-system-auth-context.util';
 import { isDuplicateEntryError } from 'src/engine/twenty-orm/utils/is-duplicate-entry-error.util';
@@ -47,6 +48,7 @@ export class CreateCompanyAndPersonService {
     private readonly userWorkspaceRepository: Repository<UserWorkspaceEntity>,
     @InjectRepository(WorkspaceEntity)
     private readonly workspaceRepository: Repository<WorkspaceEntity>,
+    private readonly twentyConfigService: TwentyConfigService,
   ) {}
 
   async createCompaniesAndPeople(
@@ -88,6 +90,7 @@ export class CreateCompanyAndPersonService {
           connectedAccount,
           workspaceMembers,
           workspace?.isInternalMessagesImportEnabled ?? false,
+          this.twentyConfigService.get('INTERNAL_EMAIL_DOMAINS'),
         );
 
       const { uniqueContacts, uniqueHandles } = getUniqueContactsAndHandles(

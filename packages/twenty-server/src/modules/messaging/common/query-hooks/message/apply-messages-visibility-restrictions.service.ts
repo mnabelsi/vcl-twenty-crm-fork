@@ -15,6 +15,8 @@ import { buildSystemAuthContext } from 'src/engine/twenty-orm/utils/build-system
 import { type MessageChannelMessageAssociationWorkspaceEntity } from 'src/modules/messaging/common/standard-objects/message-channel-message-association.workspace-entity';
 import { type MessageWorkspaceEntity } from 'src/modules/messaging/common/standard-objects/message.workspace-entity';
 import { WorkspaceMemberWorkspaceEntity } from 'src/modules/workspace-member/standard-objects/workspace-member.workspace-entity';
+import { TwentyConfigService } from 'src/engine/core-modules/twenty-config/twenty-config.service';
+import { capMessageChannelVisibilityForNonOwner } from 'src/engine/core-modules/messaging/utils/cap-message-channel-visibility-for-non-owner.util';
 
 @Injectable()
 export class ApplyMessagesVisibilityRestrictionsService {
@@ -26,6 +28,7 @@ export class ApplyMessagesVisibilityRestrictionsService {
     private readonly userWorkspaceRepository: Repository<UserWorkspaceEntity>,
     @InjectRepository(MessageChannelEntity)
     private readonly messageChannelRepository: Repository<MessageChannelEntity>,
+    private readonly twentyConfigService: TwentyConfigService,
   ) {}
 
   public async applyMessagesVisibilityRestrictions(
@@ -93,9 +96,17 @@ export class ApplyMessagesVisibilityRestrictionsService {
             continue;
           }
 
+          const isEmailBodyVisibleToOwnerOnly = this.twentyConfigService.get(
+            'IS_EMAIL_BODY_VISIBLE_TO_OWNER_ONLY',
+          );
+
           const messageChannelsGroupByVisibility = groupBy(
             messageChannels,
-            (channel) => channel.visibility,
+            (channel) =>
+              capMessageChannelVisibilityForNonOwner({
+                visibility: channel.visibility,
+                isEmailBodyVisibleToOwnerOnly,
+              }),
           );
 
           if (

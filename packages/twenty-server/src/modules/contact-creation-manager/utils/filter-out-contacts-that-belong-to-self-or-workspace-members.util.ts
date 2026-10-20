@@ -4,6 +4,7 @@ import { type ConnectedAccountEntity } from 'src/engine/metadata-modules/connect
 import { type Contact } from 'src/modules/contact-creation-manager/types/contact.type';
 import { getDomainNameFromHandle } from 'src/modules/contact-creation-manager/utils/get-domain-name-from-handle.util';
 import { type WorkspaceMemberWorkspaceEntity } from 'src/modules/workspace-member/standard-objects/workspace-member.workspace-entity';
+import { isEmailInDomains } from 'src/utils/is-email-in-domains';
 import { isWorkDomain } from 'src/utils/is-work-email';
 
 export function filterOutContactsThatBelongToSelfOrWorkspaceMembers(
@@ -11,6 +12,7 @@ export function filterOutContactsThatBelongToSelfOrWorkspaceMembers(
   connectedAccount: ConnectedAccountEntity,
   workspaceMembers: WorkspaceMemberWorkspaceEntity[],
   isInternalMessagesImportEnabled: boolean = false,
+  internalEmailDomains: string[] = [],
 ): Contact[] {
   if (!isDefined(connectedAccount.handle)) {
     throw new Error('Connected account handle is missing');
@@ -46,6 +48,7 @@ export function filterOutContactsThatBelongToSelfOrWorkspaceMembers(
         isInternalMessagesImportEnabled) &&
       // @ts-expect-error legacy noImplicitAny
       !workspaceMembersMap[contact.handle.toLowerCase()] &&
-      !allHandles.includes(contact.handle.toLowerCase()),
+      !allHandles.includes(contact.handle.toLowerCase()) &&
+      !isEmailInDomains(contact.handle, internalEmailDomains),
   );
 }
