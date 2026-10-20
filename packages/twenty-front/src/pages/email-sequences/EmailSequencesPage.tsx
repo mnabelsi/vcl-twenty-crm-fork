@@ -20,6 +20,7 @@ import { EmailSequenceTemplateEditor } from '@/email-sequence/components/EmailSe
 import { PageCardHeader } from '@/ui/layout/page/components/PageCardHeader';
 import { PageCardLayout } from '@/ui/layout/page/components/PageCardLayout';
 import { TabList } from '@/ui/layout/tab-list/components/TabList';
+import { TabListRoot } from '@/ui/layout/tab-list/components/TabListRoot';
 import { PageTitle } from '@/ui/utilities/page-title/components/PageTitle';
 import {
   EmailSequenceDashboardDocument,
@@ -95,40 +96,42 @@ export const EmailSequencesPage = () => {
           />
         }
       >
-        <StyledTabs>
-          <TabList
-            aria-label={t`Email sequence sections`}
-            tabs={tabs}
-            behaveAsLinks={false}
-            componentInstanceId={EMAIL_SEQUENCES_TABS_INSTANCE_ID}
-            defaultActiveTabId="activity"
-            onChangeTab={(tabId) =>
-              setActiveTabId(tabId as EmailSequencesTabId)
-            }
-          />
-        </StyledTabs>
-        <StyledContent>
-          {activeTabId === 'activity' && isDefined(dashboardData) && (
-            <>
-              <EmailSequenceStatsBar
-                stats={dashboardData.emailSequenceDashboard.stats}
-                dailySendLimit={
-                  settingData?.emailSequenceSetting.dailySendLimit
-                }
-              />
-              <EmailSequenceEnrollmentTable
-                enrollments={dashboardData.emailSequenceDashboard.enrollments}
-              />
-            </>
-          )}
-          {activeTabId === 'emails' && <EmailSequenceTemplateEditor />}
-          {activeTabId === 'settings' &&
-            isDefined(settingData?.emailSequenceSetting) && (
-              <EmailSequenceSettingsForm
-                setting={settingData.emailSequenceSetting}
-              />
+        <TabListRoot componentInstanceId={EMAIL_SEQUENCES_TABS_INSTANCE_ID}>
+          <StyledTabs>
+            <TabList
+              aria-label={t`Email sequence sections`}
+              tabs={tabs}
+              behaveAsLinks={false}
+              componentInstanceId={EMAIL_SEQUENCES_TABS_INSTANCE_ID}
+              defaultActiveTabId="activity"
+              onChangeTab={(tabId) =>
+                setActiveTabId(tabId as EmailSequencesTabId)
+              }
+            />
+          </StyledTabs>
+          <StyledContent>
+            {activeTabId === 'activity' && isDefined(dashboardData) && (
+              <>
+                <EmailSequenceStatsBar
+                  stats={dashboardData.emailSequenceDashboard.stats}
+                  dailySendLimit={
+                    settingData?.emailSequenceSetting.dailySendLimit
+                  }
+                />
+                <EmailSequenceEnrollmentTable
+                  enrollments={dashboardData.emailSequenceDashboard.enrollments}
+                />
+              </>
             )}
-        </StyledContent>
+            {activeTabId === 'emails' && <EmailSequenceTemplateEditor />}
+            {activeTabId === 'settings' &&
+              isDefined(settingData?.emailSequenceSetting) && (
+                <EmailSequenceSettingsForm
+                  setting={settingData.emailSequenceSetting}
+                />
+              )}
+          </StyledContent>
+        </TabListRoot>
       </PageCardLayout>
     </>
   );
